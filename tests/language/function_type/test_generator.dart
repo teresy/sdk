@@ -758,7 +758,7 @@ All tests are generated in the same directory as this script.
 }
 
 void main(List<String> arguments) {
-  if (arguments.length != 0) {
+  if (arguments.isNotEmpty) {
     printUsage();
     return;
   }

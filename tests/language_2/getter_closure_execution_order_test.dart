@@ -80,7 +80,7 @@ main() {
     failures.add(stack);
   }
   // If any of the tests failed print out the details and fail the test.
-  if (failures.length != 0) {
+  if (failures.isNotEmpty) {
     for (var msg in failures) {
       print(msg.toString());
     }

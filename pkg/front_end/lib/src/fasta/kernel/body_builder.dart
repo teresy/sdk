@@ -3113,7 +3113,7 @@ abstract class BodyBuilder extends ScopeListener<JumpTarget>
     }
     List<Object> types = forest.argumentsTypeArguments(arguments);
     List<TypeParameter> typeParameters = function.typeParameters;
-    if (typeParameters.length != types.length && types.length != 0) {
+    if (typeParameters.length != types.length && types.isNotEmpty) {
       // A wrong (non-zero) amount of type arguments given. That's an error.
       // TODO(jensj): Position should be on type arguments instead.
       return fasta.templateTypeArgumentMismatch

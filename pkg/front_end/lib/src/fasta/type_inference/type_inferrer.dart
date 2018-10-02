@@ -1206,7 +1206,7 @@ abstract class TypeInferrerImpl extends TypeInferrer {
         calleeTypeParameters.length == explicitTypeArguments.length) {
       substitution =
           Substitution.fromPairs(calleeTypeParameters, explicitTypeArguments);
-    } else if (calleeTypeParameters.length != 0) {
+    } else if (calleeTypeParameters.isNotEmpty) {
       substitution = Substitution.fromPairs(
           calleeTypeParameters,
           new List<DartType>.filled(

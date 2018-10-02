@@ -313,11 +313,11 @@ List<Object> findInboundReferences(
     for (TypeVariableBuilder<TypeBuilder, Object> dependence in variables) {
       List<NamedTypeBuilder<TypeBuilder, Object>> uses =
           findVariableUsesInType(dependence, dependent.bound);
-      if (uses.length != 0) {
+      if (uses.isNotEmpty) {
         dependencies.addAll(uses);
       }
     }
-    if (dependencies.length != 0) {
+    if (dependencies.isNotEmpty) {
       variablesAndDependencies.add(dependent);
       variablesAndDependencies.add(dependencies);
     }
@@ -367,7 +367,7 @@ List<Object> findRawTypesWithInboundReferences(TypeBuilder type) {
           declaration.typeVariables != null) {
         List<Object> dependencies =
             findInboundReferences(declaration.typeVariables);
-        if (dependencies.length != 0) {
+        if (dependencies.isNotEmpty) {
           typesAndDependencies.add(type);
           typesAndDependencies.add(dependencies);
         }
@@ -375,7 +375,7 @@ List<Object> findRawTypesWithInboundReferences(TypeBuilder type) {
         if (declaration.typeVariables != null) {
           List<Object> dependencies =
               findInboundReferences(declaration.typeVariables);
-          if (dependencies.length != 0) {
+          if (dependencies.isNotEmpty) {
             typesAndDependencies.add(type);
             typesAndDependencies.add(dependencies);
           }
@@ -385,7 +385,7 @@ List<Object> findRawTypesWithInboundReferences(TypeBuilder type) {
           if (type.typeVariables != null) {
             List<Object> dependencies =
                 findInboundReferences(type.typeVariables);
-            if (dependencies.length != 0) {
+            if (dependencies.isNotEmpty) {
               typesAndDependencies.add(type);
               typesAndDependencies.add(dependencies);
             }

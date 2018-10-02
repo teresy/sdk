@@ -111,7 +111,7 @@ class InstrumentationValueForForwardingStub extends InstrumentationValue {
       buffer.write(']');
     }
     if (function.namedParameters.isNotEmpty) {
-      if (function.positionalParameters.length != 0) buffer.write(', ');
+      if (function.positionalParameters.isNotEmpty) buffer.write(', ');
       buffer.write('{');
       for (int i = 0; i < function.namedParameters.length; i++) {
         if (i != 0) buffer.write(', ');

@@ -128,7 +128,7 @@ generic(typeConstructor, setBaseClass) => JS('', '''(() => {
   }
   let resultMap = new Map();
   function makeGenericType(...args) {
-    if (args.length != length && args.length != 0) {
+    if (args.length != length && args.isNotEmpty) {
       $throwInternalError('requires ' + length + ' or 0 type arguments');
     }
     while (args.length < length) args.push($dynamic);
