@@ -232,7 +232,7 @@ class _CodeGenerator {
                     'Class `$clsName`: TopLevel argument must be a string'
                     ' literal');
               }
-            } else if (annotation.arguments.length != 0) {
+            } else if (annotation.arguments.isNotEmpty) {
               throw new Exception(
                   'Class `$clsName`: TopLevel requires 0 or 1 arguments');
             }
