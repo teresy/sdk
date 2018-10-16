@@ -21,16 +21,12 @@ import 'package:package_config/src/packages_impl.dart' show MapPackages;
 
 import 'package:source_span/source_span.dart' show SourceSpan, SourceLocation;
 
-import '../api_prototype/byte_store.dart' show ByteStore;
-
 import '../api_prototype/compilation_message.dart' show CompilationMessage;
 
 import '../api_prototype/compiler_options.dart' show CompilerOptions;
 
 import '../api_prototype/file_system.dart'
     show FileSystem, FileSystemEntity, FileSystemException;
-
-import '../base/performance_logger.dart' show PerformanceLog;
 
 import '../fasta/command_line_reporting.dart' as command_line_reporting;
 
@@ -183,16 +179,6 @@ class ProcessedOptions {
         // collecting time since the start of the VM.
         this.ticker = new Ticker(isVerbose: options?.verbose ?? false);
 
-  /// The logger to report compilation progress.
-  PerformanceLog get logger {
-    return _raw.logger;
-  }
-
-  /// The byte storage to get and put serialized data.
-  ByteStore get byteStore {
-    return _raw.byteStore;
-  }
-
   bool get _reportMessages {
     return _raw.onProblem == null &&
         (_raw.reportMessages ?? (_raw.onError == null));
@@ -226,7 +212,7 @@ class ProcessedOptions {
       List<FormattedMessage> formattedContext =
           new List<FormattedMessage>(context.length);
       for (int i = 0; i < context.length; i++) {
-        formattedContext[i] = format(context[i], severity, null);
+        formattedContext[i] = format(context[i], Severity.context, null);
       }
       _raw.onProblem(
           format(message, severity, null), severity, formattedContext);
@@ -314,15 +300,14 @@ class ProcessedOptions {
   /// effect.
   void clearFileSystemCache() => _fileSystem = null;
 
-  /// Whether to interpret Dart sources in strong-mode.
-  bool get strongMode => _raw.strongMode;
+  bool get legacyMode => _raw.legacyMode;
 
   /// Whether to generate bytecode.
   bool get bytecode => _raw.bytecode;
 
   Target _target;
   Target get target => _target ??=
-      _raw.target ?? new NoneTarget(new TargetFlags(strongMode: strongMode));
+      _raw.target ?? new NoneTarget(new TargetFlags(legacyMode: legacyMode));
 
   /// Get an outline component that summarizes the SDK, if any.
   // TODO(sigmund): move, this doesn't feel like an "option".
@@ -330,7 +315,9 @@ class ProcessedOptions {
     if (_sdkSummaryComponent == null) {
       if (sdkSummary == null) return null;
       var bytes = await loadSdkSummaryBytes();
-      _sdkSummaryComponent = loadComponent(bytes, nameRoot);
+      if (bytes != null && bytes.isNotEmpty) {
+        _sdkSummaryComponent = loadComponent(bytes, nameRoot);
+      }
     }
     return _sdkSummaryComponent;
   }
@@ -636,7 +623,7 @@ class ProcessedOptions {
         '(provided: ${_raw.librariesSpecificationUri})');
     sb.writeln('SDK summary: ${_sdkSummary} (provided: ${_raw.sdkSummary})');
 
-    sb.writeln('Strong: ${strongMode}');
+    sb.writeln('Legacy mode: ${legacyMode}');
     sb.writeln('Target: ${_target?.name} (provided: ${_raw.target?.name})');
 
     sb.writeln('throwOnErrorsForDebugging: ${throwOnErrorsForDebugging}');

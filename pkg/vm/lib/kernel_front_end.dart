@@ -7,17 +7,18 @@ library vm.kernel_front_end;
 
 import 'dart:async';
 
-import 'package:front_end/src/base/processed_options.dart'
-    show ProcessedOptions;
-import 'package:front_end/src/fasta/compiler_context.dart' show CompilerContext;
-import 'package:front_end/src/fasta/fasta_codes.dart' as codes;
+import 'package:front_end/src/api_unstable/vm.dart'
+    show
+        CompilerContext,
+        CompilerOptions,
+        DiagnosticMessage,
+        DiagnosticMessageHandler,
+        ProcessedOptions,
+        Severity,
+        getMessageUri,
+        kernelForProgram,
+        printDiagnosticMessage;
 
-import 'package:front_end/src/api_prototype/compiler_options.dart'
-    show CompilerOptions, ProblemHandler;
-import 'package:front_end/src/api_prototype/kernel_generator.dart'
-    show kernelForProgram;
-import 'package:front_end/src/api_prototype/compilation_message.dart'
-    show Severity;
 import 'package:kernel/type_environment.dart' show TypeEnvironment;
 import 'package:kernel/class_hierarchy.dart' show ClassHierarchy;
 import 'package:kernel/ast.dart' show Component, Field, StaticGet;
@@ -52,8 +53,8 @@ Future<Component> compileToKernel(Uri source, CompilerOptions options,
     bool enableConstantEvaluation: true}) async {
   // Replace error handler to detect if there are compilation errors.
   final errorDetector =
-      new ErrorDetector(previousErrorHandler: options.onProblem);
-  options.onProblem = errorDetector;
+      new ErrorDetector(previousErrorHandler: options.onDiagnostic);
+  options.onDiagnostic = errorDetector;
 
   final component = await kernelForProgram(source, options);
 
@@ -63,7 +64,6 @@ Future<Component> compileToKernel(Uri source, CompilerOptions options,
         source,
         options,
         component,
-        options.strongMode,
         useGlobalTypeFlowAnalysis,
         environmentDefines,
         enableAsserts,
@@ -74,14 +74,12 @@ Future<Component> compileToKernel(Uri source, CompilerOptions options,
   if (genBytecode && !errorDetector.hasCompilationErrors && component != null) {
     await runWithFrontEndCompilerContext(source, options, component, () {
       generateBytecode(component,
-          strongMode: options.strongMode,
-          dropAST: dropAST,
-          environmentDefines: environmentDefines);
+          dropAST: dropAST, environmentDefines: environmentDefines);
     });
   }
 
   // Restore error handler (in case 'options' are reused).
-  options.onProblem = errorDetector.previousErrorHandler;
+  options.onDiagnostic = errorDetector.previousErrorHandler;
 
   return component;
 }
@@ -90,40 +88,37 @@ Future _runGlobalTransformations(
     Uri source,
     CompilerOptions compilerOptions,
     Component component,
-    bool strongMode,
     bool useGlobalTypeFlowAnalysis,
     Map<String, String> environmentDefines,
     bool enableAsserts,
     bool enableConstantEvaluation,
     ErrorDetector errorDetector) async {
-  if (strongMode) {
+  if (errorDetector.hasCompilationErrors) return;
+
+  final coreTypes = new CoreTypes(component);
+  _patchVmConstants(coreTypes);
+
+  // TODO(alexmarkov, dmitryas): Consider doing canonicalization of identical
+  // mixin applications when creating mixin applications in frontend,
+  // so all backends (and all transformation passes from the very beginning)
+  // can benefit from mixin de-duplication.
+  // At least, in addition to VM/AOT case we should run this transformation
+  // when building a platform dill file for VM/JIT case.
+  mixin_deduplication.transformComponent(component);
+
+  if (enableConstantEvaluation) {
+    await _performConstantEvaluation(source, compilerOptions, component,
+        coreTypes, environmentDefines, enableAsserts);
+
     if (errorDetector.hasCompilationErrors) return;
+  }
 
-    final coreTypes = new CoreTypes(component);
-    _patchVmConstants(coreTypes);
-
-    // TODO(alexmarkov, dmitryas): Consider doing canonicalization of identical
-    // mixin applications when creating mixin applications in frontend,
-    // so all backends (and all transformation passes from the very beginning)
-    // can benefit from mixin de-duplication.
-    // At least, in addition to VM/AOT case we should run this transformation
-    // when building a platform dill file for VM/JIT case.
-    mixin_deduplication.transformComponent(component);
-
-    if (enableConstantEvaluation) {
-      await _performConstantEvaluation(source, compilerOptions, component,
-          coreTypes, environmentDefines, strongMode, enableAsserts);
-
-      if (errorDetector.hasCompilationErrors) return;
-    }
-
-    if (useGlobalTypeFlowAnalysis) {
-      globalTypeFlow.transformComponent(
-          compilerOptions.target, coreTypes, component);
-    } else {
-      devirtualization.transformComponent(coreTypes, component);
-      no_dynamic_invocations_annotator.transformComponent(component);
-    }
+  if (useGlobalTypeFlowAnalysis) {
+    globalTypeFlow.transformComponent(
+        compilerOptions.target, coreTypes, component);
+  } else {
+    devirtualization.transformComponent(coreTypes, component);
+    no_dynamic_invocations_annotator.transformComponent(component);
   }
 }
 
@@ -151,7 +146,6 @@ Future _performConstantEvaluation(
     Component component,
     CoreTypes coreTypes,
     Map<String, String> environmentDefines,
-    bool strongMode,
     bool enableAsserts) async {
   final vmConstants =
       new vm_constants.VmConstantsBackend(environmentDefines, coreTypes);
@@ -159,7 +153,7 @@ Future _performConstantEvaluation(
   await runWithFrontEndCompilerContext(source, compilerOptions, component, () {
     final hierarchy = new ClassHierarchy(component);
     final typeEnvironment =
-        new TypeEnvironment(coreTypes, hierarchy, strongMode: strongMode);
+        new TypeEnvironment(coreTypes, hierarchy, strongMode: true);
 
     // TFA will remove constants fields which are unused (and respects the
     // vm/embedder entrypoints).
@@ -188,47 +182,38 @@ void _patchVmConstants(CoreTypes coreTypes) {
 }
 
 class ErrorDetector {
-  final ProblemHandler previousErrorHandler;
+  final DiagnosticMessageHandler previousErrorHandler;
   bool hasCompilationErrors = false;
 
   ErrorDetector({this.previousErrorHandler});
 
-  void call(codes.FormattedMessage problem, Severity severity,
-      List<codes.FormattedMessage> context) {
-    if (severity == Severity.error) {
+  void call(DiagnosticMessage message) {
+    if (message.severity == Severity.error) {
       hasCompilationErrors = true;
     }
 
-    previousErrorHandler?.call(problem, severity, context);
+    previousErrorHandler?.call(message);
   }
 }
 
 class ErrorPrinter {
-  final ProblemHandler previousErrorHandler;
-  final compilationMessages = <Uri, List<List>>{};
+  final DiagnosticMessageHandler previousErrorHandler;
+  final compilationMessages = <Uri, List<DiagnosticMessage>>{};
 
   ErrorPrinter({this.previousErrorHandler});
 
-  void call(codes.FormattedMessage problem, Severity severity,
-      List<codes.FormattedMessage> context) {
-    final sourceUri = problem.locatedMessage.uri;
-    compilationMessages.putIfAbsent(sourceUri, () => [])
-      ..add([problem, context]);
-    previousErrorHandler?.call(problem, severity, context);
+  void call(DiagnosticMessage message) {
+    final sourceUri = getMessageUri(message);
+    (compilationMessages[sourceUri] ??= <DiagnosticMessage>[]).add(message);
+    previousErrorHandler?.call(message);
   }
 
   void printCompilationMessages(Uri baseUri) {
     final sortedUris = compilationMessages.keys.toList()
       ..sort((a, b) => '$a'.compareTo('$b'));
     for (final Uri sourceUri in sortedUris) {
-      for (final List errorTuple in compilationMessages[sourceUri]) {
-        final codes.FormattedMessage message = errorTuple.first;
-        print(message.formatted);
-
-        final List context = errorTuple.last;
-        for (final codes.FormattedMessage message in context?.reversed) {
-          print(message.formatted);
-        }
+      for (final DiagnosticMessage message in compilationMessages[sourceUri]) {
+        printDiagnosticMessage(message, print);
       }
     }
   }

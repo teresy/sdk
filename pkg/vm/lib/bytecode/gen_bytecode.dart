@@ -27,12 +27,17 @@ import 'constant_pool.dart';
 import 'dbc.dart';
 import 'exceptions.dart';
 import 'local_vars.dart' show LocalVariables;
+import 'recognized_methods.dart' show RecognizedMethods;
 import '../constants_error_reporter.dart' show ForwardConstantEvaluationErrors;
 import '../metadata/bytecode.dart';
 
+// This symbol is used as the name in assert assignable's to indicate it comes
+// from an explicit 'as' check.  This will cause the runtime to throw the right
+// exception.
+const String symbolForTypeCast = ' in type cast';
+
 void generateBytecode(Component component,
-    {bool strongMode: true,
-    bool dropAST: false,
+    {bool dropAST: false,
     bool omitSourcePositions: false,
     Map<String, String> environmentDefines,
     ErrorReporter errorReporter}) {
@@ -41,12 +46,12 @@ void generateBytecode(Component component,
   final hierarchy = new ClassHierarchy(component,
       onAmbiguousSupertypes: ignoreAmbiguousSupertypes);
   final typeEnvironment =
-      new TypeEnvironment(coreTypes, hierarchy, strongMode: strongMode);
+      new TypeEnvironment(coreTypes, hierarchy, strongMode: true);
   final constantsBackend =
       new VmConstantsBackend(environmentDefines, coreTypes);
   final errorReporter = new ForwardConstantEvaluationErrors(typeEnvironment);
   new BytecodeGenerator(component, coreTypes, hierarchy, typeEnvironment,
-          constantsBackend, strongMode, omitSourcePositions, errorReporter)
+          constantsBackend, omitSourcePositions, errorReporter)
       .visitComponent(component);
   if (dropAST) {
     new DropAST().visitComponent(component);
@@ -59,10 +64,10 @@ class BytecodeGenerator extends RecursiveVisitor<Null> {
   final ClassHierarchy hierarchy;
   final TypeEnvironment typeEnvironment;
   final ConstantsBackend constantsBackend;
-  final bool strongMode;
   final bool omitSourcePositions;
   final ErrorReporter errorReporter;
   final BytecodeMetadataRepository metadata = new BytecodeMetadataRepository();
+  final RecognizedMethods recognizedMethods;
 
   Class enclosingClass;
   Member enclosingMember;
@@ -95,9 +100,9 @@ class BytecodeGenerator extends RecursiveVisitor<Null> {
       this.hierarchy,
       this.typeEnvironment,
       this.constantsBackend,
-      this.strongMode,
       this.omitSourcePositions,
-      this.errorReporter) {
+      this.errorReporter)
+      : recognizedMethods = new RecognizedMethods(typeEnvironment) {
     component.addMetadataRepository(metadata);
   }
 
@@ -214,10 +219,6 @@ class BytecodeGenerator extends RecursiveVisitor<Null> {
   Procedure _objectSimpleInstanceOf;
   Procedure get objectSimpleInstanceOf => _objectSimpleInstanceOf ??=
       libraryIndex.getMember('dart:core', 'Object', '_simpleInstanceOf');
-
-  Procedure _objectAs;
-  Procedure get objectAs =>
-      _objectAs ??= libraryIndex.getMember('dart:core', 'Object', '_as');
 
   Field _closureInstantiatorTypeArguments;
   Field get closureInstantiatorTypeArguments =>
@@ -668,6 +669,9 @@ class BytecodeGenerator extends RecursiveVisitor<Null> {
     parentFunction = null;
     isClosure = false;
     hasErrors = false;
+    if ((node is Procedure && !node.isStatic) || node is Constructor) {
+      typeEnvironment.thisType = enclosingClass.thisType;
+    }
     final isFactory = node is Procedure && node.isFactory;
     if (node.isInstanceMember || node is Constructor || isFactory) {
       if (enclosingClass.typeParameters.isNotEmpty) {
@@ -696,8 +700,13 @@ class BytecodeGenerator extends RecursiveVisitor<Null> {
     }
     locals = new LocalVariables(node);
     // TODO(alexmarkov): improve caching in ConstantEvaluator and reuse it
-    constantEvaluator = new ConstantEvaluator(constantsBackend, typeEnvironment,
-        coreTypes, strongMode, /* enableAsserts = */ true, errorReporter)
+    constantEvaluator = new ConstantEvaluator(
+        constantsBackend,
+        typeEnvironment,
+        coreTypes,
+        /* strongMode = */ true,
+        /* enableAsserts = */ true,
+        errorReporter)
       ..env = new EvaluationEnvironment();
     labeledStatements = <LabeledStatement, Label>{};
     switchCases = <SwitchCase, Label>{};
@@ -749,6 +758,7 @@ class BytecodeGenerator extends RecursiveVisitor<Null> {
           cp, asm.bytecode, asm.exceptionsTable, nullableFields, closures);
     }
 
+    typeEnvironment.thisType = null;
     enclosingClass = null;
     enclosingMember = null;
     enclosingFunction = null;
@@ -1468,16 +1478,8 @@ class BytecodeGenerator extends RecursiveVisitor<Null> {
     if (typeEnvironment.isTop(type)) {
       return;
     }
-    if (node.isTypeError) {
-      _genAssertAssignable(type);
-    } else {
-      _genPushInstantiatorAndFunctionTypeArguments([type]);
-      asm.emitPushConstant(cp.add(new ConstantType(type)));
-      final argDescIndex = cp.add(new ConstantArgDesc(4));
-      final icdataIndex = cp.add(new ConstantICData(
-          InvocationKind.method, objectAs.name, argDescIndex));
-      asm.emitInstanceCall(4, icdataIndex);
-    }
+
+    _genAssertAssignable(type, name: node.isTypeError ? '' : symbolForTypeCast);
   }
 
   @override
@@ -1764,11 +1766,56 @@ class BytecodeGenerator extends RecursiveVisitor<Null> {
     _genStaticCall(mapFromLiteral, new ConstantArgDesc(2, numTypeArgs: 0), 2);
   }
 
+  void _genMethodInvocationUsingSpecializedBytecode(
+      Opcode opcode, MethodInvocation node) {
+    switch (opcode) {
+      case Opcode.kEqualsNull:
+        if (node.receiver is NullLiteral) {
+          node.arguments.positional.single.accept(this);
+        } else {
+          node.receiver.accept(this);
+        }
+        break;
+
+      case Opcode.kNegateInt:
+        node.receiver.accept(this);
+        break;
+
+      case Opcode.kAddInt:
+      case Opcode.kSubInt:
+      case Opcode.kMulInt:
+      case Opcode.kTruncDivInt:
+      case Opcode.kModInt:
+      case Opcode.kBitAndInt:
+      case Opcode.kBitOrInt:
+      case Opcode.kBitXorInt:
+      case Opcode.kShlInt:
+      case Opcode.kShrInt:
+      case Opcode.kCompareIntEq:
+      case Opcode.kCompareIntGt:
+      case Opcode.kCompareIntLt:
+      case Opcode.kCompareIntGe:
+      case Opcode.kCompareIntLe:
+        node.receiver.accept(this);
+        node.arguments.positional.single.accept(this);
+        break;
+
+      default:
+        throw 'Unexpected specialized bytecode $opcode';
+    }
+
+    asm.emitBytecode0(opcode);
+  }
+
   @override
   visitMethodInvocation(MethodInvocation node) {
+    final Opcode opcode = recognizedMethods.specializedBytecodeFor(node);
+    if (opcode != null) {
+      _genMethodInvocationUsingSpecializedBytecode(opcode, node);
+      return;
+    }
     final args = node.arguments;
     _genArguments(node.receiver, args);
-    // TODO(alexmarkov): fast path smi ops
     final argDescIndex =
         cp.add(new ConstantArgDesc.fromArguments(args, hasReceiver: true));
     final icdataIndex = cp.add(new ConstantICData(

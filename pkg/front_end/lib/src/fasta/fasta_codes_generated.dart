@@ -27,6 +27,7 @@ const Code<Message Function(String name)> codeAbstractClassInstantiation =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsAbstractClassInstantiation(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeAbstractClassInstantiation,
       message: """The class '${name}' is abstract and can't be instantiated.""",
       arguments: {'name': name});
@@ -38,7 +39,7 @@ const Code<Null> codeAbstractClassMember = messageAbstractClassMember;
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const MessageCode messageAbstractClassMember = const MessageCode(
     "AbstractClassMember",
-    analyzerCodes: <String>["ABSTRACT_CLASS_MEMBER"],
+    index: 51,
     message: r"""Members of classes can't be declared to be 'abstract'.""",
     tip:
         r"""Try removing the 'abstract' keyword. You can add the 'abstract' keyword before the class declaration.""");
@@ -73,6 +74,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsAbstractRedirectedClassInstantiation(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeAbstractRedirectedClassInstantiation,
       message:
           """Factory redirects to class '${name}', which is abstract and can't be instantiated.""",
@@ -95,6 +97,7 @@ const Code<Message Function(String name)> codeAccessError =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsAccessError(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeAccessError,
       message: """Access error: '${name}'.""", arguments: {'name': name});
 }
@@ -118,6 +121,7 @@ const Code<Message Function(String name, DartType _type, DartType _type2)>
 Message _withArgumentsAmbiguousSupertypes(
     String name, DartType _type, DartType _type2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   NameSystem nameSystem = new NameSystem();
   StringBuffer buffer;
   buffer = new StringBuffer();
@@ -302,7 +306,9 @@ const Code<Message Function(String name, String name2)>
 Message _withArgumentsBoundIssueViaCycleNonSimplicity(
     String name, String name2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   return new Message(codeBoundIssueViaCycleNonSimplicity,
       message:
           """Generic type '${name}' can't be used without type arguments in the bounds of its own type variables. It is referenced indirectly through '${name2}'.""",
@@ -330,6 +336,7 @@ const Code<Message Function(String name)> codeBoundIssueViaLoopNonSimplicity =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsBoundIssueViaLoopNonSimplicity(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeBoundIssueViaLoopNonSimplicity,
       message:
           """Generic type '${name}' can't be used without type arguments in the bounds of its own type variables.""",
@@ -357,6 +364,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsBoundIssueViaRawTypeWithNonSimpleBounds(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeBoundIssueViaRawTypeWithNonSimpleBounds,
       message:
           """Generic type '${name}' can't be used without type arguments in a type variable bound.""",
@@ -370,7 +378,7 @@ const Code<Null> codeBreakOutsideOfLoop = messageBreakOutsideOfLoop;
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const MessageCode messageBreakOutsideOfLoop = const MessageCode(
     "BreakOutsideOfLoop",
-    analyzerCodes: <String>["BREAK_OUTSIDE_OF_LOOP"],
+    index: 52,
     message:
         r"""A break statement can't be used outside of a loop or switch statement.""",
     tip: r"""Try removing the break statement.""");
@@ -391,6 +399,7 @@ const Code<Message Function(String name)> codeBreakTargetOutsideFunction =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsBreakTargetOutsideFunction(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeBreakTargetOutsideFunction,
       message: """Can't break to '${name}' in a different function.""",
       arguments: {'name': name});
@@ -468,6 +477,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsCandidateFoundIsDefaultConstructor(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeCandidateFoundIsDefaultConstructor,
       message:
           """The class '${name}' has a constructor that takes no arguments.""",
@@ -728,7 +738,7 @@ const Code<Null> codeClassInClass = messageClassInClass;
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const MessageCode messageClassInClass = const MessageCode("ClassInClass",
-    analyzerCodes: <String>["CLASS_IN_CLASS"],
+    index: 53,
     message: r"""Classes can't be declared inside other classes.""",
     tip: r"""Try moving the class to the top-level.""");
 
@@ -738,7 +748,7 @@ const Code<Null> codeColonInPlaceOfIn = messageColonInPlaceOfIn;
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const MessageCode messageColonInPlaceOfIn = const MessageCode(
     "ColonInPlaceOfIn",
-    analyzerCodes: <String>["COLON_IN_PLACE_OF_IN"],
+    index: 54,
     message: r"""For-in loops use 'in' rather than a colon.""",
     tip: r"""Try replacing the colon with the keyword 'in'.""");
 
@@ -757,6 +767,7 @@ const Code<Message Function(String name)> codeConflictsWithConstructor =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConflictsWithConstructor(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConflictsWithConstructor,
       message: """Conflicts with constructor '${name}'.""",
       arguments: {'name': name});
@@ -778,6 +789,7 @@ const Code<Message Function(String name)> codeConflictsWithFactory =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConflictsWithFactory(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConflictsWithFactory,
       message: """Conflicts with factory '${name}'.""",
       arguments: {'name': name});
@@ -798,6 +810,7 @@ const Code<Message Function(String name)> codeConflictsWithMember =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConflictsWithMember(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConflictsWithMember,
       message: """Conflicts with member '${name}'.""",
       arguments: {'name': name});
@@ -820,6 +833,7 @@ const Code<Message Function(String name)> codeConflictsWithMemberWarning =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConflictsWithMemberWarning(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConflictsWithMemberWarning,
       message: """Conflicts with member '${name}'.""",
       arguments: {'name': name});
@@ -840,6 +854,7 @@ const Code<Message Function(String name)> codeConflictsWithSetter =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConflictsWithSetter(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConflictsWithSetter,
       message: """Conflicts with setter '${name}'.""",
       arguments: {'name': name});
@@ -862,6 +877,7 @@ const Code<Message Function(String name)> codeConflictsWithSetterWarning =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConflictsWithSetterWarning(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConflictsWithSetterWarning,
       message: """Conflicts with setter '${name}'.""",
       arguments: {'name': name});
@@ -883,6 +899,7 @@ const Code<Message Function(String name)> codeConflictsWithTypeVariable =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConflictsWithTypeVariable(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConflictsWithTypeVariable,
       message: """Conflicts with type variable '${name}'.""",
       arguments: {'name': name});
@@ -904,7 +921,7 @@ const Code<Null> codeConstAfterFactory = messageConstAfterFactory;
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const MessageCode messageConstAfterFactory = const MessageCode(
     "ConstAfterFactory",
-    analyzerCodes: <String>["CONST_AFTER_FACTORY"],
+    index: 56,
     message:
         r"""The modifier 'const' should be before the modifier 'factory'.""",
     tip: r"""Try re-ordering the modifiers.""");
@@ -915,7 +932,7 @@ const Code<Null> codeConstAndCovariant = messageConstAndCovariant;
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const MessageCode messageConstAndCovariant = const MessageCode(
     "ConstAndCovariant",
-    analyzerCodes: <String>["CONST_AND_COVARIANT"],
+    index: 57,
     message:
         r"""Members can't be declared to be both 'const' and 'covariant'.""",
     tip: r"""Try removing either the 'const' or 'covariant' keyword.""");
@@ -925,7 +942,7 @@ const Code<Null> codeConstAndFinal = messageConstAndFinal;
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const MessageCode messageConstAndFinal = const MessageCode("ConstAndFinal",
-    analyzerCodes: <String>["CONST_AND_FINAL"],
+    index: 58,
     message: r"""Members can't be declared to be both 'const' and 'final'.""",
     tip: r"""Try removing either the 'const' or 'final' keyword.""");
 
@@ -934,7 +951,7 @@ const Code<Null> codeConstAndVar = messageConstAndVar;
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const MessageCode messageConstAndVar = const MessageCode("ConstAndVar",
-    analyzerCodes: <String>["CONST_AND_VAR"],
+    index: 59,
     message: r"""Members can't be declared to be both 'const' and 'var'.""",
     tip: r"""Try removing either the 'const' or 'var' keyword.""");
 
@@ -943,7 +960,7 @@ const Code<Null> codeConstClass = messageConstClass;
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const MessageCode messageConstClass = const MessageCode("ConstClass",
-    analyzerCodes: <String>["CONST_CLASS"],
+    index: 60,
     message: r"""Classes can't be declared to be 'const'.""",
     tip:
         r"""Try removing the 'const' keyword. If you're trying to indicate that instances of the class can be constants, place the 'const' keyword on  the class' constructor(s).""");
@@ -1042,6 +1059,7 @@ const Code<Message Function(String name)> codeConstEvalDeferredLibrary =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConstEvalDeferredLibrary(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConstEvalDeferredLibrary,
       message:
           """'${name}' can't be used in a constant expression because it's marked as 'deferred' which means it isn't available until loaded.""",
@@ -1220,6 +1238,7 @@ const Code<Message Function(String name)> codeConstEvalInvalidStaticInvocation =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConstEvalInvalidStaticInvocation(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConstEvalInvalidStaticInvocation,
       message:
           """The invocation of '${name}' is not allowed within a const context.""",
@@ -1458,6 +1477,7 @@ const Code<Message Function(String name)> codeConstFieldWithoutInitializer =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConstFieldWithoutInitializer(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConstFieldWithoutInitializer,
       message: """The const variable '${name}' must be initialized.""",
       tip:
@@ -1513,6 +1533,7 @@ const Code<Message Function(String name)> codeConstructorNotFound =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConstructorNotFound(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConstructorNotFound,
       message: """Couldn't find constructor '${name}'.""",
       arguments: {'name': name});
@@ -1535,7 +1556,7 @@ const Code<Null> codeConstructorWithReturnType =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const MessageCode messageConstructorWithReturnType = const MessageCode(
     "ConstructorWithReturnType",
-    analyzerCodes: <String>["CONSTRUCTOR_WITH_RETURN_TYPE"],
+    index: 55,
     message: r"""Constructors can't have a return type.""",
     tip: r"""Try removing the return type.""");
 
@@ -1587,6 +1608,7 @@ const Code<Message Function(String name)> codeConstructorWithWrongNameContext =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsConstructorWithWrongNameContext(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeConstructorWithWrongNameContext,
       message: """The name of the enclosing class is '${name}'.""",
       arguments: {'name': name});
@@ -1629,6 +1651,7 @@ const Code<Message Function(String name)> codeContinueTargetOutsideFunction =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsContinueTargetOutsideFunction(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeContinueTargetOutsideFunction,
       message: """Can't continue at '${name}' in a different function.""",
       arguments: {'name': name});
@@ -1736,6 +1759,7 @@ const Code<Message Function(String name, String string)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsCycleInTypeVariables(String name, String string) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (string.isEmpty) throw 'No string provided';
   return new Message(codeCycleInTypeVariables,
       message: """Type '${name}' is a bound of itself via '${string}'.""",
@@ -1761,6 +1785,7 @@ const Code<Message Function(String name, String string)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsCyclicClassHierarchy(String name, String string) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (string.isEmpty) throw 'No string provided';
   return new Message(codeCyclicClassHierarchy,
       message: """'${name}' is a supertype of itself via '${string}'.""",
@@ -1785,6 +1810,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsCyclicRedirectingFactoryConstructors(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeCyclicRedirectingFactoryConstructors,
       message: """Cyclic definition of factory '${name}'.""",
       arguments: {'name': name});
@@ -1805,6 +1831,7 @@ const Code<Message Function(String name)> codeCyclicTypedef =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsCyclicTypedef(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeCyclicTypedef,
       message: """The typedef '${name}' has a reference to itself.""",
       arguments: {'name': name});
@@ -1855,6 +1882,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDefaultValueInRedirectingFactoryConstructor(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDefaultValueInRedirectingFactoryConstructor,
       message:
           """Can't have a default value here because any default values of '${name}' would be used instead.""",
@@ -1892,6 +1920,7 @@ const Code<Message Function(String name)> codeDeferredPrefixDuplicated =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDeferredPrefixDuplicated(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDeferredPrefixDuplicated,
       message:
           """Can't use the name '${name}' for a deferred library, as the name is used elsewhere.""",
@@ -1914,6 +1943,7 @@ const Code<Message Function(String name)> codeDeferredPrefixDuplicatedCause =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDeferredPrefixDuplicatedCause(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDeferredPrefixDuplicatedCause,
       message: """'${name}' is used here.""", arguments: {'name': name});
 }
@@ -1948,6 +1978,7 @@ Message _withArgumentsDeferredTypeAnnotation(DartType _type, String name) {
   String type = '$buffer';
 
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDeferredTypeAnnotation,
       message:
           """The type '${type}' is deferred loaded via prefix '${name}' and can't be used as a type annotation.""",
@@ -2022,6 +2053,7 @@ const Code<Message Function(String name)> codeDirectCycleInTypeVariables =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDirectCycleInTypeVariables(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDirectCycleInTypeVariables,
       message: """Type '${name}' can't use itself as a bound.""",
       tip:
@@ -2045,6 +2077,7 @@ const Code<Message Function(String name)> codeDirectCyclicClassHierarchy =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDirectCyclicClassHierarchy(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDirectCyclicClassHierarchy,
       message: """'${name}' can't use itself as a supertype.""",
       arguments: {'name': name});
@@ -2089,6 +2122,7 @@ const Code<Message Function(String name)> codeDuplicateLabelInSwitchStatement =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicateLabelInSwitchStatement(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicateLabelInSwitchStatement,
       message:
           """The label '${name}' was already used in this switch statement.""",
@@ -2120,6 +2154,7 @@ const Code<Message Function(String name)> codeDuplicatedDeclaration =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedDeclaration(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedDeclaration,
       message: """'${name}' is already declared in this scope.""",
       arguments: {'name': name});
@@ -2141,6 +2176,7 @@ const Code<Message Function(String name)> codeDuplicatedDeclarationCause =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedDeclarationCause(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedDeclarationCause,
       message: """Previous declaration of '${name}'.""",
       arguments: {'name': name});
@@ -2167,6 +2203,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedDeclarationSyntheticCause(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedDeclarationSyntheticCause,
       message:
           """Previous declaration of '${name}' is implied by this definition.""",
@@ -2190,6 +2227,7 @@ const Code<Message Function(String name)> codeDuplicatedDeclarationUse =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedDeclarationUse(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedDeclarationUse,
       message: """Can't use '${name}' because it is declared more than once.""",
       arguments: {'name': name});
@@ -2213,6 +2251,7 @@ const Code<Message Function(String name, Uri uri_, Uri uri2_)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedExport(String name, Uri uri_, Uri uri2_) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   String uri = relativizeUri(uri_);
   String uri2 = relativizeUri(uri2_);
   return new Message(codeDuplicatedExport,
@@ -2238,6 +2277,7 @@ const Code<Message Function(String name, Uri uri_, Uri uri2_)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedExportInType(String name, Uri uri_, Uri uri2_) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   String uri = relativizeUri(uri_);
   String uri2 = relativizeUri(uri2_);
   return new Message(codeDuplicatedExportInType,
@@ -2263,6 +2303,7 @@ const Code<Message Function(String name, Uri uri_, Uri uri2_)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedImport(String name, Uri uri_, Uri uri2_) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   String uri = relativizeUri(uri_);
   String uri2 = relativizeUri(uri2_);
   return new Message(codeDuplicatedImport,
@@ -2289,6 +2330,7 @@ const Code<Message Function(String name, Uri uri_, Uri uri2_)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedImportInType(String name, Uri uri_, Uri uri2_) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   String uri = relativizeUri(uri_);
   String uri2 = relativizeUri(uri2_);
   return new Message(codeDuplicatedImportInType,
@@ -2312,6 +2354,7 @@ const Code<Message Function(String name)> codeDuplicatedLibraryExport =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedLibraryExport(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedLibraryExport,
       message: """A library with name '${name}' is exported more than once.""",
       arguments: {'name': name});
@@ -2333,6 +2376,7 @@ const Code<Message Function(String name)> codeDuplicatedLibraryExportContext =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedLibraryExportContext(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedLibraryExportContext,
       message: """'${name}' is also exported here.""",
       arguments: {'name': name});
@@ -2349,11 +2393,13 @@ const Template<Message Function(String name)> templateDuplicatedLibraryImport =
 const Code<Message Function(String name)> codeDuplicatedLibraryImport =
     const Code<Message Function(String name)>(
         "DuplicatedLibraryImport", templateDuplicatedLibraryImport,
-        analyzerCodes: <String>["IMPORT_DUPLICATED_LIBRARY_NAMED"]);
+        analyzerCodes: <String>["IMPORT_DUPLICATED_LIBRARY_NAMED"],
+        severity: Severity.warning);
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedLibraryImport(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedLibraryImport,
       message: """A library with name '${name}' is imported more than once.""",
       arguments: {'name': name});
@@ -2375,6 +2421,7 @@ const Code<Message Function(String name)> codeDuplicatedLibraryImportContext =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedLibraryImportContext(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedLibraryImportContext,
       message: """'${name}' is also imported here.""",
       arguments: {'name': name});
@@ -2421,6 +2468,7 @@ const Code<Message Function(String name)> codeDuplicatedNamePreviouslyUsed =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedNamePreviouslyUsed(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedNamePreviouslyUsed,
       message:
           """Can't declare '${name}' because it was already used in this scope.""",
@@ -2445,6 +2493,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedNamePreviouslyUsedCause(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedNamePreviouslyUsedCause,
       message: """Previous use of '${name}'.""", arguments: {'name': name});
 }
@@ -2464,6 +2513,7 @@ const Code<Message Function(String name)> codeDuplicatedNamedArgument =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedNamedArgument(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedNamedArgument,
       message: """Duplicated named argument '${name}'.""",
       arguments: {'name': name});
@@ -2484,6 +2534,7 @@ const Code<Message Function(String name)> codeDuplicatedParameterName =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedParameterName(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedParameterName,
       message: """Duplicated parameter name '${name}'.""",
       arguments: {'name': name});
@@ -2505,6 +2556,7 @@ const Code<Message Function(String name)> codeDuplicatedParameterNameCause =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsDuplicatedParameterNameCause(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeDuplicatedParameterNameCause,
       message: """Other parameter named '${name}'.""",
       arguments: {'name': name});
@@ -2557,6 +2609,7 @@ const Code<Message Function(String name)> codeEnumConstantSameNameAsEnclosing =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsEnumConstantSameNameAsEnclosing(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeEnumConstantSameNameAsEnclosing,
       message:
           """Name of enum constant '${name}' can't be the same as the enum's own name.""",
@@ -2982,6 +3035,7 @@ const Code<Message Function(String name, Uri uri_, Uri uri2_)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsExportHidesExport(String name, Uri uri_, Uri uri2_) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   String uri = relativizeUri(uri_);
   String uri2 = relativizeUri(uri2_);
   return new Message(codeExportHidesExport,
@@ -3015,6 +3069,7 @@ const Code<Message Function(String name)> codeExtendingEnum =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsExtendingEnum(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeExtendingEnum,
       message: """'${name}' is an enum and can't be extended or implemented.""",
       arguments: {'name': name});
@@ -3036,6 +3091,7 @@ const Code<Message Function(String name)> codeExtendingRestricted =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsExtendingRestricted(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeExtendingRestricted,
       message:
           """'${name}' is restricted and can't be extended or implemented.""",
@@ -3218,6 +3274,7 @@ const Code<Message Function(String name, int count)>
 Message _withArgumentsFactoryRedirecteeHasTooFewPositionalParameters(
     String name, int count) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (count == null) throw 'No count provided';
   return new Message(codeFactoryRedirecteeHasTooFewPositionalParameters,
       message:
@@ -3257,6 +3314,7 @@ Message _withArgumentsFactoryRedirecteeInvalidReturnType(
   String type = '$buffer';
 
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   buffer = new StringBuffer();
   new Printer(buffer, syntheticNames: nameSystem).writeNode(_type2);
   String type2 = '$buffer';
@@ -3295,6 +3353,7 @@ const Code<Message Function(String name)> codeFastaCLIArgumentRequired =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsFastaCLIArgumentRequired(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeFastaCLIArgumentRequired,
       message: """Expected value after '${name}'.""",
       arguments: {'name': name});
@@ -3315,6 +3374,10 @@ const MessageCode messageFastaUsageLong =
 
   -v, --verbose
     Display verbose information.
+
+  -Dname
+  -Dname=value
+    Ignored for now.
 
   --
     Stop option parsing, the rest of the command line is assumed to be
@@ -3351,6 +3414,9 @@ const MessageCode messageFastaUsageLong =
   --sdk=<sdk>
     Location of the SDK sources for use when compiling additional platform
     libraries.
+
+  --supermixin
+    Ignored for now.
 
   --fatal=errors
   --fatal=warnings
@@ -3420,6 +3486,7 @@ const Code<Message Function(String name)> codeFinalFieldNotInitialized =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsFinalFieldNotInitialized(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeFinalFieldNotInitialized,
       message: """Final field '${name}' is not initialized.""",
       tip:
@@ -3450,6 +3517,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsFinalFieldNotInitializedByConstructor(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeFinalFieldNotInitializedByConstructor,
       message:
           """Final field '${name}' is not initialized by this constructor.""",
@@ -3478,6 +3546,7 @@ const Code<Message Function(String name)> codeFinalFieldWithoutInitializer =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsFinalFieldWithoutInitializer(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeFinalFieldWithoutInitializer,
       message: """The final variable '${name}' must be initialized.""",
       tip:
@@ -3505,6 +3574,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsFinalInstanceVariableAlreadyInitialized(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeFinalInstanceVariableAlreadyInitialized,
       message:
           """'${name}' is a final instance variable that has already been initialized.""",
@@ -3531,6 +3601,7 @@ const Code<Message Function(String name)>
 Message _withArgumentsFinalInstanceVariableAlreadyInitializedCause(
     String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeFinalInstanceVariableAlreadyInitializedCause,
       message: """'${name}' was initialized here.""",
       arguments: {'name': name});
@@ -3699,6 +3770,7 @@ const Code<Message Function(String name)> codeGetterNotFound =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsGetterNotFound(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeGetterNotFound,
       message: """Getter not found: '${name}'.""", arguments: {'name': name});
 }
@@ -3769,6 +3841,7 @@ const Code<Message Function(String name)> codeIllegalMixin =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsIllegalMixin(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeIllegalMixin,
       message: """The type '${name}' can't be mixed in.""",
       arguments: {'name': name});
@@ -3791,6 +3864,7 @@ const Code<Message Function(String name)> codeIllegalMixinDueToConstructors =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsIllegalMixinDueToConstructors(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeIllegalMixinDueToConstructors,
       message:
           """Can't use '${name}' as a mixin because it has constructors.""",
@@ -3816,6 +3890,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsIllegalMixinDueToConstructorsCause(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeIllegalMixinDueToConstructorsCause,
       message: """This constructor prevents using '${name}' as a mixin.""",
       arguments: {'name': name});
@@ -3896,6 +3971,7 @@ const Code<Message Function(String name, int count)> codeImplementsRepeated =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsImplementsRepeated(String name, int count) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (count == null) throw 'No count provided';
   return new Message(codeImplementsRepeated,
       message: """'${name}' can only be implemented once.""",
@@ -3923,6 +3999,7 @@ const Code<Message Function(String name)> codeImplementsSuperClass =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsImplementsSuperClass(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeImplementsSuperClass,
       message:
           """'${name}' can't be used in both 'extends' and 'implements' clauses.""",
@@ -3964,6 +4041,36 @@ Message _withArgumentsImplicitCallOfNonMethod(DartType _type) {
 }
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+const Template<
+    Message Function(
+        String name,
+        String
+            name2)> templateImplicitMixinOverrideContext = const Template<
+        Message Function(String name, String name2)>(
+    messageTemplate:
+        r"""Override was introduced when the mixin '#name' was applied to '#name2'.""",
+    withArguments: _withArgumentsImplicitMixinOverrideContext);
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+const Code<Message Function(String name, String name2)>
+    codeImplicitMixinOverrideContext =
+    const Code<Message Function(String name, String name2)>(
+        "ImplicitMixinOverrideContext", templateImplicitMixinOverrideContext,
+        severity: Severity.context);
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+Message _withArgumentsImplicitMixinOverrideContext(String name, String name2) {
+  if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
+  if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
+  return new Message(codeImplicitMixinOverrideContext,
+      message:
+          """Override was introduced when the mixin '${name}' was applied to '${name2}'.""",
+      arguments: {'name': name, 'name2': name2});
+}
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const Code<Null> codeImportAfterPart = messageImportAfterPart;
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
@@ -3990,6 +4097,7 @@ const Code<Message Function(String name, Uri uri_, Uri uri2_)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsImportHidesImport(String name, Uri uri_, Uri uri2_) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   String uri = relativizeUri(uri_);
   String uri2 = relativizeUri(uri2_);
   return new Message(codeImportHidesImport,
@@ -4113,6 +4221,7 @@ const Code<Message Function(String name)> codeInitializerForStaticField =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInitializerForStaticField(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeInitializerForStaticField,
       message: """'${name}' isn't an instance field of this class.""",
       arguments: {'name': name});
@@ -4137,6 +4246,7 @@ const Code<Message Function(String name)> codeInitializerOutsideConstructor =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInitializerOutsideConstructor(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeInitializerOutsideConstructor,
       message:
           """Only constructors can have initializers, and '${name}' is not a constructor.""",
@@ -4170,6 +4280,7 @@ const Code<Message Function(String name, DartType _type, DartType _type2)>
 Message _withArgumentsInitializingFormalTypeMismatch(
     String name, DartType _type, DartType _type2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   NameSystem nameSystem = new NameSystem();
   StringBuffer buffer;
   buffer = new StringBuffer();
@@ -4220,30 +4331,56 @@ Message _withArgumentsInputFileNotFound(Uri uri_) {
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const Template<
     Message Function(
-        Token
-            token)> templateIntegerLiteralIsOutOfRange = const Template<
-        Message Function(Token token)>(
+        String
+            string)> templateIntegerLiteralIsOutOfRange = const Template<
+        Message Function(String string)>(
     messageTemplate:
-        r"""The integer literal #lexeme can't be represented in 64 bits.""",
+        r"""The integer literal #string can't be represented in 64 bits.""",
     tipTemplate:
         r"""Try using the BigInt class if you need an integer larger than 9,223,372,036,854,775,807 or less than -9,223,372,036,854,775,808.""",
     withArguments: _withArgumentsIntegerLiteralIsOutOfRange);
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
-const Code<Message Function(Token token)> codeIntegerLiteralIsOutOfRange =
-    const Code<Message Function(Token token)>(
+const Code<Message Function(String string)> codeIntegerLiteralIsOutOfRange =
+    const Code<Message Function(String string)>(
         "IntegerLiteralIsOutOfRange", templateIntegerLiteralIsOutOfRange,
         analyzerCodes: <String>["INTEGER_LITERAL_OUT_OF_RANGE"]);
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
-Message _withArgumentsIntegerLiteralIsOutOfRange(Token token) {
-  String lexeme = token.lexeme;
+Message _withArgumentsIntegerLiteralIsOutOfRange(String string) {
+  if (string.isEmpty) throw 'No string provided';
   return new Message(codeIntegerLiteralIsOutOfRange,
       message:
-          """The integer literal ${lexeme} can't be represented in 64 bits.""",
+          """The integer literal ${string} can't be represented in 64 bits.""",
       tip:
           """Try using the BigInt class if you need an integer larger than 9,223,372,036,854,775,807 or less than -9,223,372,036,854,775,808.""",
-      arguments: {'token': token});
+      arguments: {'string': string});
+}
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+const Template<
+    Message Function(
+        String
+            name)> templateInterfaceCheckContext = const Template<
+        Message Function(String name)>(
+    messageTemplate:
+        r"""Both members are inherited by the non-abstract class '#name'.""",
+    withArguments: _withArgumentsInterfaceCheckContext);
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+const Code<Message Function(String name)> codeInterfaceCheckContext =
+    const Code<Message Function(String name)>(
+        "InterfaceCheckContext", templateInterfaceCheckContext,
+        severity: Severity.context);
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+Message _withArgumentsInterfaceCheckContext(String name) {
+  if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
+  return new Message(codeInterfaceCheckContext,
+      message:
+          """Both members are inherited by the non-abstract class '${name}'.""",
+      arguments: {'name': name});
 }
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
@@ -4285,6 +4422,7 @@ const Code<Message Function(String name, Uri uri_)>
 Message _withArgumentsInternalProblemConstructorNotFound(
     String name, Uri uri_) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   String uri = relativizeUri(uri_);
   return new Message(codeInternalProblemConstructorNotFound,
       message: """No constructor named '${name}' in '${uri}'.""",
@@ -4331,6 +4469,7 @@ const Code<Message Function(String name, String string)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInternalProblemDebugAbort(String name, String string) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (string.isEmpty) throw 'No string provided';
   return new Message(codeInternalProblemDebugAbort,
       message: """Compilation aborted due to fatal '${name}' at:
@@ -4374,6 +4513,7 @@ const Code<Message Function(String name)> codeInternalProblemNotFound =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInternalProblemNotFound(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeInternalProblemNotFound,
       message: """Couldn't find '${name}'.""", arguments: {'name': name});
 }
@@ -4395,7 +4535,9 @@ const Code<Message Function(String name, String name2)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInternalProblemNotFoundIn(String name, String name2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   return new Message(codeInternalProblemNotFoundIn,
       message: """Couldn't find '${name}' in '${name2}'.""",
       arguments: {'name': name, 'name2': name2});
@@ -4429,6 +4571,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInternalProblemPrivateConstructorAccess(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeInternalProblemPrivateConstructorAccess,
       message: """Can't access private constructor '${name}'.""",
       arguments: {'name': name});
@@ -4462,6 +4605,7 @@ const Code<Message Function(String name, String string)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInternalProblemStackNotEmpty(String name, String string) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (string.isEmpty) throw 'No string provided';
   return new Message(codeInternalProblemStackNotEmpty,
       message: """${name}.stack isn't empty:
@@ -4486,6 +4630,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInternalProblemSuperclassNotFound(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeInternalProblemSuperclassNotFound,
       message: """Superclass not found '${name}'.""",
       arguments: {'name': name});
@@ -4573,6 +4718,7 @@ const Code<Message Function(String name)> codeInternalProblemUnsupported =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInternalProblemUnsupported(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeInternalProblemUnsupported,
       message: """Unsupported operation: '${name}'.""",
       arguments: {'name': name});
@@ -4695,6 +4841,7 @@ const Code<Message Function(String name)> codeInvalidBreakTarget =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInvalidBreakTarget(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeInvalidBreakTarget,
       message: """Can't break to '${name}'.""", arguments: {'name': name});
 }
@@ -5009,6 +5156,7 @@ const Code<Message Function(String name)> codeInvalidContinueTarget =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInvalidContinueTarget(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeInvalidContinueTarget,
       message: """Can't continue at '${name}'.""", arguments: {'name': name});
 }
@@ -5148,6 +5296,7 @@ const Code<Message Function(String name)> codeInvokeNonFunction =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsInvokeNonFunction(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeInvokeNonFunction,
       message: """'${name}' isn't a function or method and can't be invoked.""",
       arguments: {'name': name});
@@ -5171,6 +5320,7 @@ const Code<Message Function(String name)> codeLabelNotFound =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsLabelNotFound(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeLabelNotFound,
       message: """Can't find label '${name}'.""",
       tip:
@@ -5254,6 +5404,7 @@ const Code<Message Function(String name, Uri uri_)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsLocalDefinitionHidesExport(String name, Uri uri_) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   String uri = relativizeUri(uri_);
   return new Message(codeLocalDefinitionHidesExport,
       message: """Local definition of '${name}' hides export from '${uri}'.""",
@@ -5278,6 +5429,7 @@ const Code<Message Function(String name, Uri uri_)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsLocalDefinitionHidesImport(String name, Uri uri_) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   String uri = relativizeUri(uri_);
   return new Message(codeLocalDefinitionHidesImport,
       message: """Local definition of '${name}' hides import from '${uri}'.""",
@@ -5330,6 +5482,7 @@ const Code<Message Function(String name)> codeMethodNotFound =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsMethodNotFound(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeMethodNotFound,
       message: """Method not found: '${name}'.""", arguments: {'name': name});
 }
@@ -5448,6 +5601,7 @@ const Code<Message Function(String name)> codeMissingImplementationCause =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsMissingImplementationCause(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeMissingImplementationCause,
       message: """'${name}' is defined here.""", arguments: {'name': name});
 }
@@ -5483,6 +5637,7 @@ const Code<Message Function(String name, String string)>
 Message _withArgumentsMissingImplementationNotAbstract(
     String name, String string) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (string.isEmpty) throw 'No string provided';
   return new Message(codeMissingImplementationNotAbstract,
       message:
@@ -5600,7 +5755,9 @@ const Code<Message Function(String name, String name2, DartType _type)>
 Message _withArgumentsMixinInferenceNoMatchingClass(
     String name, String name2, DartType _type) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   NameSystem nameSystem = new NameSystem();
   StringBuffer buffer;
   buffer = new StringBuffer();
@@ -5685,6 +5842,32 @@ const MessageCode messageNamedFunctionExpression = const MessageCode(
     message: r"""A function expression can't have a name.""");
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+const Template<
+    Message Function(
+        String
+            name)> templateNamedMixinOverrideContext = const Template<
+        Message Function(String name)>(
+    messageTemplate:
+        r"""Override was introduced in the mixin application class '#name'.""",
+    withArguments: _withArgumentsNamedMixinOverrideContext);
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+const Code<Message Function(String name)> codeNamedMixinOverrideContext =
+    const Code<Message Function(String name)>(
+        "NamedMixinOverrideContext", templateNamedMixinOverrideContext,
+        severity: Severity.context);
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+Message _withArgumentsNamedMixinOverrideContext(String name) {
+  if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
+  return new Message(codeNamedMixinOverrideContext,
+      message:
+          """Override was introduced in the mixin application class '${name}'.""",
+      arguments: {'name': name});
+}
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const Code<Null> codeNativeClauseShouldBeAnnotation =
     messageNativeClauseShouldBeAnnotation;
 
@@ -5736,6 +5919,7 @@ const Code<Message Function(String name)> codeNoSuchNamedParameter =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsNoSuchNamedParameter(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeNoSuchNamedParameter,
       message: """No named parameter with the name '${name}'.""",
       arguments: {'name': name});
@@ -5868,6 +6052,7 @@ const Code<Message Function(String name)> codeNonSimpleBoundViaReference =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsNonSimpleBoundViaReference(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeNonSimpleBoundViaReference,
       message: """Bound of this variable references raw type '${name}'.""",
       arguments: {'name': name});
@@ -5892,6 +6077,7 @@ const Code<Message Function(String name)> codeNonSimpleBoundViaVariable =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsNonSimpleBoundViaVariable(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeNonSimpleBoundViaVariable,
       message:
           """Bound of this variable references variable '${name}' from the same declaration.""",
@@ -5929,7 +6115,9 @@ const Code<Message Function(String name, String name2)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsNotAPrefixInTypeAnnotation(String name, String name2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   return new Message(codeNotAPrefixInTypeAnnotation,
       message:
           """'${name}.${name2}' can't be used as a type because '${name}' doesn't refer to an import prefix.""",
@@ -5951,6 +6139,7 @@ const Code<Message Function(String name)> codeNotAType =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsNotAType(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeNotAType,
       message: """'${name}' isn't a type.""", arguments: {'name': name});
 }
@@ -6014,6 +6203,7 @@ const Code<Message Function(String name)> codeOperatorMinusParameterMismatch =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsOperatorMinusParameterMismatch(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeOperatorMinusParameterMismatch,
       message: """Operator '${name}' should have zero or one parameter.""",
       tip:
@@ -6038,6 +6228,7 @@ const Code<Message Function(String name)> codeOperatorParameterMismatch0 =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsOperatorParameterMismatch0(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeOperatorParameterMismatch0,
       message: """Operator '${name}' shouldn't have any parameters.""",
       arguments: {'name': name});
@@ -6060,6 +6251,7 @@ const Code<Message Function(String name)> codeOperatorParameterMismatch1 =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsOperatorParameterMismatch1(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeOperatorParameterMismatch1,
       message: """Operator '${name}' should have exactly one parameter.""",
       arguments: {'name': name});
@@ -6082,6 +6274,7 @@ const Code<Message Function(String name)> codeOperatorParameterMismatch2 =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsOperatorParameterMismatch2(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeOperatorParameterMismatch2,
       message: """Operator '${name}' should have exactly two parameters.""",
       arguments: {'name': name});
@@ -6111,6 +6304,7 @@ const Code<Message Function(String name)> codeOverriddenMethodCause =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsOverriddenMethodCause(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeOverriddenMethodCause,
       message: """This is the overridden method ('${name}').""",
       arguments: {'name': name});
@@ -6138,7 +6332,9 @@ const Code<Message Function(String name, String name2)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsOverrideFewerNamedArguments(String name, String name2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   return new Message(codeOverrideFewerNamedArguments,
       message:
           """The method '${name}' has fewer named arguments than those of overridden method '${name2}'.""",
@@ -6169,7 +6365,9 @@ const Code<Message Function(String name, String name2)>
 Message _withArgumentsOverrideFewerPositionalArguments(
     String name, String name2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   return new Message(codeOverrideFewerPositionalArguments,
       message:
           """The method '${name}' has fewer positional arguments than those of overridden method '${name2}'.""",
@@ -6201,8 +6399,11 @@ const Code<Message Function(String name, String name2, String name3)>
 Message _withArgumentsOverrideMismatchNamedParameter(
     String name, String name2, String name3) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   if (name3.isEmpty) throw 'No name provided';
+  name3 = demangleMixinApplicationName(name3);
   return new Message(codeOverrideMismatchNamedParameter,
       message:
           """The method '${name}' doesn't have the named parameter '${name2}' of overridden method '${name3}'.""",
@@ -6231,7 +6432,9 @@ const Code<Message Function(String name, String name2)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsOverrideMoreRequiredArguments(String name, String name2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   return new Message(codeOverrideMoreRequiredArguments,
       message:
           """The method '${name}' has more required arguments than those of overridden method '${name2}'.""",
@@ -6268,7 +6471,9 @@ const Code<
 Message _withArgumentsOverrideTypeMismatchParameter(
     String name, String name2, DartType _type, DartType _type2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   NameSystem nameSystem = new NameSystem();
   StringBuffer buffer;
   buffer = new StringBuffer();
@@ -6316,6 +6521,7 @@ const Code<Message Function(String name, DartType _type, DartType _type2)>
 Message _withArgumentsOverrideTypeMismatchReturnType(
     String name, DartType _type, DartType _type2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   NameSystem nameSystem = new NameSystem();
   StringBuffer buffer;
   buffer = new StringBuffer();
@@ -6355,7 +6561,9 @@ const Code<Message Function(String name, String name2)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsOverrideTypeVariablesMismatch(String name, String name2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   return new Message(codeOverrideTypeVariablesMismatch,
       message:
           """Declared type variables of '${name}' doesn't match those on overridden method '${name2}'.""",
@@ -6380,6 +6588,7 @@ const Code<Message Function(String name, Uri uri_)> codePackageNotFound =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsPackageNotFound(String name, Uri uri_) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   String uri = relativizeUri(uri_);
   return new Message(codePackageNotFound,
       message: """Could not resolve the package '${name}' in '${uri}'.""",
@@ -6495,7 +6704,9 @@ Message _withArgumentsPartOfLibraryNameMismatch(
     Uri uri_, String name, String name2) {
   String uri = relativizeUri(uri_);
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   return new Message(codePartOfLibraryNameMismatch,
       message:
           """Using '${uri}' as part of '${name}' but its 'part of' declaration says '${name2}'.""",
@@ -6598,6 +6809,7 @@ Message _withArgumentsPartOfUseUri(Uri uri_, Uri uri2_, String name) {
   String uri = relativizeUri(uri_);
   String uri2 = relativizeUri(uri2_);
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codePartOfUseUri,
       message:
           """Using '${uri}' as part of '${uri2}' but its 'part of' declaration says '${name}'.""",
@@ -6686,6 +6898,7 @@ const Code<Message Function(String name, Uri uri_)> codePatchInjectionFailed =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsPatchInjectionFailed(String name, Uri uri_) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   String uri = relativizeUri(uri_);
   return new Message(codePatchInjectionFailed,
       message: """Can't inject '${name}' into '${uri}'.""",
@@ -6828,6 +7041,7 @@ const Code<Message Function(String name, DartType _type, DartType _type2)>
 Message _withArgumentsRedirectingFactoryInvalidNamedParameterType(
     String name, DartType _type, DartType _type2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   NameSystem nameSystem = new NameSystem();
   StringBuffer buffer;
   buffer = new StringBuffer();
@@ -6868,6 +7082,7 @@ const Code<Message Function(String name, DartType _type, DartType _type2)>
 Message _withArgumentsRedirectingFactoryInvalidPositionalParameterType(
     String name, DartType _type, DartType _type2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   NameSystem nameSystem = new NameSystem();
   StringBuffer buffer;
   buffer = new StringBuffer();
@@ -6907,7 +7122,9 @@ const Code<Message Function(String name, String name2)>
 Message _withArgumentsRedirectingFactoryMissingNamedParameter(
     String name, String name2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   return new Message(codeRedirectingFactoryMissingNamedParameter,
       message:
           """The constructor '${name}' does not have a named parameter '${name2}'.""",
@@ -6938,8 +7155,10 @@ const Code<Message Function(String name, int count, String name2, int count2)>
 Message _withArgumentsRedirectingFactoryProvidesTooFewRequiredParameters(
     String name, int count, String name2, int count2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (count == null) throw 'No count provided';
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   if (count2 == null) throw 'No count provided';
   return new Message(codeRedirectingFactoryProvidesTooFewRequiredParameters,
       message:
@@ -6982,6 +7201,7 @@ const Code<Message Function(String name)> codeRedirectionTargetNotFound =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsRedirectionTargetNotFound(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeRedirectionTargetNotFound,
       message: """Redirection constructor target not found: '${name}'""",
       arguments: {'name': name});
@@ -7121,6 +7341,7 @@ const Code<Message Function(String name)> codeSetterNotFound =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsSetterNotFound(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeSetterNotFound,
       message: """Setter not found: '${name}'.""", arguments: {'name': name});
 }
@@ -7341,6 +7562,32 @@ const MessageCode messageSuperNullAware = const MessageCode("SuperNullAware",
     tip: r"""Try replacing '?.' with '.'""");
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+const Template<Message Function(String name)>
+    templateSuperclassHasNoConstructor =
+    const Template<Message Function(String name)>(
+        messageTemplate: r"""Superclass has no constructor named '#name'.""",
+        withArguments: _withArgumentsSuperclassHasNoConstructor);
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+const Code<Message Function(String name)> codeSuperclassHasNoConstructor =
+    const Code<Message Function(String name)>(
+        "SuperclassHasNoConstructor", templateSuperclassHasNoConstructor,
+        analyzerCodes: <String>[
+          "UNDEFINED_CONSTRUCTOR_IN_INITIALIZER",
+          "UNDEFINED_CONSTRUCTOR_IN_INITIALIZER_DEFAULT"
+        ],
+        severity: Severity.errorLegacyWarning);
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+Message _withArgumentsSuperclassHasNoConstructor(String name) {
+  if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
+  return new Message(codeSuperclassHasNoConstructor,
+      message: """Superclass has no constructor named '${name}'.""",
+      arguments: {'name': name});
+}
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const Template<
     Message Function(
         String
@@ -7361,6 +7608,7 @@ const Code<Message Function(String name)>
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsSuperclassHasNoDefaultConstructor(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeSuperclassHasNoDefaultConstructor,
       message:
           """The superclass, '${name}', has no unnamed constructor that takes no arguments.""",
@@ -7383,6 +7631,7 @@ const Code<Message Function(String name)> codeSuperclassHasNoGetter =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsSuperclassHasNoGetter(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeSuperclassHasNoGetter,
       message: """Superclass has no getter named '${name}'.""",
       arguments: {'name': name});
@@ -7404,6 +7653,7 @@ const Code<Message Function(String name)> codeSuperclassHasNoMethod =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsSuperclassHasNoMethod(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeSuperclassHasNoMethod,
       message: """Superclass has no method named '${name}'.""",
       arguments: {'name': name});
@@ -7425,6 +7675,7 @@ const Code<Message Function(String name)> codeSuperclassHasNoSetter =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsSuperclassHasNoSetter(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeSuperclassHasNoSetter,
       message: """Superclass has no setter named '${name}'.""",
       arguments: {'name': name});
@@ -7450,6 +7701,7 @@ const Code<Message Function(String name)> codeSuperclassMethodArgumentMismatch =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsSuperclassMethodArgumentMismatch(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeSuperclassMethodArgumentMismatch,
       message:
           """Superclass doesn't have a method named '${name}' with matching arguments.""",
@@ -7479,6 +7731,7 @@ const Code<Message Function(String name)> codeSupertypeIsIllegal =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsSupertypeIsIllegal(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeSupertypeIsIllegal,
       message: """The type '${name}' can't be used as supertype.""",
       arguments: {'name': name});
@@ -7500,6 +7753,7 @@ const Code<Message Function(String name)> codeSupertypeIsTypeVariable =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsSupertypeIsTypeVariable(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeSupertypeIsTypeVariable,
       message: """The type variable '${name}' can't be used as supertype.""",
       arguments: {'name': name});
@@ -7609,6 +7863,7 @@ const Code<Message Function(String name)> codeThisAccessInFieldInitializer =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsThisAccessInFieldInitializer(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeThisAccessInFieldInitializer,
       message:
           """Can't access 'this' in a field initializer to read '${name}'.""",
@@ -7773,6 +8028,7 @@ const Code<Message Function(String name)> codeTypeArgumentsOnTypeVariable =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsTypeArgumentsOnTypeVariable(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeTypeArgumentsOnTypeVariable,
       message: """Can't use type arguments with type variable '${name}'.""",
       tip: """Try removing the type arguments.""",
@@ -7795,6 +8051,7 @@ const Code<Message Function(String name)> codeTypeNotFound =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsTypeNotFound(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeTypeNotFound,
       message: """Type '${name}' not found.""", arguments: {'name': name});
 }
@@ -7825,6 +8082,7 @@ const Code<Message Function(String name)> codeTypeVariableDuplicatedNameCause =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsTypeVariableDuplicatedNameCause(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeTypeVariableDuplicatedNameCause,
       message: """The other type variable named '${name}'.""",
       arguments: {'name': name});
@@ -7902,6 +8160,7 @@ const Code<Message Function(String name, DartType _type)> codeUndefinedGetter =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsUndefinedGetter(String name, DartType _type) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   NameSystem nameSystem = new NameSystem();
   StringBuffer buffer;
   buffer = new StringBuffer();
@@ -7938,6 +8197,7 @@ const Code<Message Function(String name, DartType _type)> codeUndefinedMethod =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsUndefinedMethod(String name, DartType _type) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   NameSystem nameSystem = new NameSystem();
   StringBuffer buffer;
   buffer = new StringBuffer();
@@ -7974,6 +8234,7 @@ const Code<Message Function(String name, DartType _type)> codeUndefinedSetter =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsUndefinedSetter(String name, DartType _type) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   NameSystem nameSystem = new NameSystem();
   StringBuffer buffer;
   buffer = new StringBuffer();
@@ -8065,7 +8326,9 @@ const Code<Message Function(String name, String name2)>
 Message _withArgumentsUnresolvedPrefixInTypeAnnotation(
     String name, String name2) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   if (name2.isEmpty) throw 'No name provided';
+  name2 = demangleMixinApplicationName(name2);
   return new Message(codeUnresolvedPrefixInTypeAnnotation,
       message:
           """'${name}.${name2}' can't be used as a type because '${name}' isn't defined.""",
@@ -8197,9 +8460,17 @@ const Code<Message Function(String name)> codeUseOfDeprecatedIdentifier =
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 Message _withArgumentsUseOfDeprecatedIdentifier(String name) {
   if (name.isEmpty) throw 'No name provided';
+  name = demangleMixinApplicationName(name);
   return new Message(codeUseOfDeprecatedIdentifier,
       message: """'${name}' is deprecated.""", arguments: {'name': name});
 }
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+const Code<Null> codeVarAsTypeName = messageVarAsTypeName;
+
+// DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
+const MessageCode messageVarAsTypeName = const MessageCode("VarAsTypeName",
+    index: 61, message: r"""The keyword 'var' can't be used as a type name.""");
 
 // DO NOT EDIT. THIS FILE IS GENERATED. SEE TOP OF FILE.
 const Code<Null> codeVarReturnType = messageVarReturnType;

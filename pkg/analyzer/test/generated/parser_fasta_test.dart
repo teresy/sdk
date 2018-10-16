@@ -106,6 +106,16 @@ class ErrorParserTest_Fasta extends FastaParserTestCase
       expectedError(ParserErrorCode.MISSING_FUNCTION_BODY, 13, 1),
     ]);
   }
+
+  void test_staticOperatorNamedMethod() {
+    // operator can be used as a method name
+    parseCompilationUnit('class C { static operator(x) => x; }');
+  }
+
+  void test_yieldAsLabel() {
+    // yield can be used as a label
+    parseCompilationUnit('main() { yield: break yield; }');
+  }
 }
 
 /**
@@ -151,15 +161,6 @@ class FastaParserTestCase extends Object
   @override
   set enableLazyAssignmentOperators(bool value) {
     // Lazy assignment operators are always enabled
-  }
-
-  @override
-  set enableNnbd(bool value) {
-    if (value == true) {
-      // TODO(paulberry,ahe): non-null-by-default syntax is not supported by
-      // Fasta.
-      throw new UnimplementedError();
-    }
   }
 
   set enableOptionalNewAndConst(bool enable) {

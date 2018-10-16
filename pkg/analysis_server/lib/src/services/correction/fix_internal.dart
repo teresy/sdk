@@ -308,6 +308,11 @@ class FixProcessor {
         errorCode == StaticWarningCode.UNDEFINED_IDENTIFIER_AWAIT) {
       await _addFix_addAsync();
     }
+    if ((errorCode == CompileTimeErrorCode.BUILT_IN_IDENTIFIER_AS_TYPE ||
+            errorCode == ParserErrorCode.UNEXPECTED_TOKEN) &&
+        error.message.indexOf("'await'") >= 0) {
+      await _addFix_addAsync();
+    }
     if (errorCode == CompileTimeErrorCode.INTEGER_LITERAL_IMPRECISE_AS_DOUBLE) {
       await _addFix_changeToNearestPreciseValue();
     }
@@ -546,6 +551,11 @@ class FixProcessor {
     if (errorCode == CompileTimeErrorCode.CONST_INSTANCE_FIELD) {
       await _addFix_addStatic();
     }
+    if (errorCode ==
+        StaticTypeWarningCode.WRONG_NUMBER_OF_TYPE_ARGUMENTS_CONSTRUCTOR) {
+      await _addFix_moveTypeArgumentsToClass();
+      await _addFix_removeTypeArguments();
+    }
     // lints
     if (errorCode is LintCode) {
       String name = errorCode.name;
@@ -621,6 +631,10 @@ class FixProcessor {
     }
     // done
     return fixes;
+  }
+
+  Future<Fix> computeFix(ErrorCode errorCode) async {
+    return null;
   }
 
   Future<void> _addFix_addAsync() async {
@@ -2557,6 +2571,32 @@ class FixProcessor {
     }
   }
 
+  Future<void> _addFix_moveTypeArgumentsToClass() async {
+    if (coveredNode is TypeArgumentList) {
+      TypeArgumentList typeArguments = coveredNode;
+      if (typeArguments.parent is! TypeName) {
+        return;
+      }
+      TypeName typeName = typeArguments.parent;
+      if (typeName.typeArguments != null) {
+        return;
+      }
+      Element element = typeName.type.element;
+      if (element is ClassElement &&
+          element.typeParameters != null &&
+          element.typeParameters.length == typeArguments.arguments.length) {
+        DartChangeBuilder changeBuilder = new DartChangeBuilder(session);
+        await changeBuilder.addFileEdit(file, (DartFileEditBuilder builder) {
+          String argumentText = utils.getNodeText(typeArguments);
+          builder.addSimpleInsertion(typeName.end, argumentText);
+          builder.addDeletion(range.node(typeArguments));
+        });
+        _addFixFromBuilder(
+            changeBuilder, DartFixKind.MOVE_TYPE_ARGUMENTS_TO_CLASS);
+      }
+    }
+  }
+
   Future<void> _addFix_nonBoolCondition_addNotNull() async {
     // TODO(brianwilkerson) Determine whether this await is necessary.
     await null;
@@ -2806,6 +2846,17 @@ class FixProcessor {
         builder.addDeletion(range.startStart(type, type.endToken.next));
       });
       _addFixFromBuilder(changeBuilder, DartFixKind.REMOVE_TYPE_NAME);
+    }
+  }
+
+  Future<void> _addFix_removeTypeArguments() async {
+    if (coveredNode is TypeArgumentList) {
+      TypeArgumentList typeArguments = coveredNode;
+      DartChangeBuilder changeBuilder = new DartChangeBuilder(session);
+      await changeBuilder.addFileEdit(file, (DartFileEditBuilder builder) {
+        builder.addDeletion(range.node(typeArguments));
+      });
+      _addFixFromBuilder(changeBuilder, DartFixKind.REMOVE_TYPE_ARGUMENTS);
     }
   }
 

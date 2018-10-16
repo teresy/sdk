@@ -414,11 +414,8 @@ void FlowGraphCompiler::RecordCatchEntryMoves(Environment* env,
                                               intptr_t try_index) {
 #if defined(DART_PRECOMPILER)
   env = env ? env : pending_deoptimization_env_;
-  try_index = try_index != CatchClauseNode::kInvalidTryIndex
-                  ? try_index
-                  : CurrentTryIndex();
-  if (is_optimizing() && env != nullptr &&
-      (try_index != CatchClauseNode::kInvalidTryIndex)) {
+  try_index = try_index != kInvalidTryIndex ? try_index : CurrentTryIndex();
+  if (is_optimizing() && env != nullptr && (try_index != kInvalidTryIndex)) {
     env = env->Outermost();
     CatchBlockEntryInstr* catch_block =
         flow_graph().graph_entry()->GetCatchEntry(try_index);
@@ -978,12 +975,6 @@ void FlowGraphCompiler::FinalizeExceptionHandlers(const Code& code) {
   const ExceptionHandlers& handlers = ExceptionHandlers::Handle(
       exception_handlers_list_->FinalizeExceptionHandlers(code.PayloadStart()));
   code.set_exception_handlers(handlers);
-  if (FLAG_compiler_stats) {
-    Thread* thread = Thread::Current();
-    INC_STAT(thread, total_code_size,
-             ExceptionHandlers::InstanceSize(handlers.num_entries()));
-    INC_STAT(thread, total_code_size, handlers.num_entries() * sizeof(uword));
-  }
 }
 
 void FlowGraphCompiler::FinalizePcDescriptors(const Code& code) {
@@ -1099,20 +1090,15 @@ void FlowGraphCompiler::FinalizeStaticCallTargetsTable(const Code& code) {
     }
   }
   code.set_static_calls_target_table(targets);
-  INC_STAT(Thread::Current(), total_code_size,
-           targets.Length() * sizeof(uword));
 }
 
 void FlowGraphCompiler::FinalizeCodeSourceMap(const Code& code) {
   const Array& inlined_id_array =
       Array::Handle(zone(), code_source_map_builder_->InliningIdToFunction());
-  INC_STAT(Thread::Current(), total_code_size,
-           inlined_id_array.Length() * sizeof(uword));
   code.set_inlined_id_to_function(inlined_id_array);
 
   const CodeSourceMap& map =
       CodeSourceMap::Handle(code_source_map_builder_->Finalize());
-  INC_STAT(Thread::Current(), total_code_size, map.Length() * sizeof(uint8_t));
   code.set_code_source_map(map);
 
 #if defined(DEBUG)
@@ -1261,7 +1247,7 @@ void FlowGraphCompiler::GenerateInstanceCall(intptr_t deopt_id,
     const Array& arguments_descriptor =
         Array::Handle(ic_data_in.arguments_descriptor());
     EmitMegamorphicInstanceCall(name, arguments_descriptor, deopt_id, token_pos,
-                                locs, CatchClauseNode::kInvalidTryIndex);
+                                locs, kInvalidTryIndex);
     return;
   }
 
@@ -2009,7 +1995,7 @@ void FlowGraphCompiler::EmitTestAndCall(const CallTargets& targets,
     __ Bind(&next_test);
   }
   if (add_megamorphic_call) {
-    int try_index = CatchClauseNode::kInvalidTryIndex;
+    int try_index = kInvalidTryIndex;
     EmitMegamorphicInstanceCall(function_name, arguments_descriptor, deopt_id,
                                 token_index, locs, try_index);
   }
@@ -2268,8 +2254,8 @@ void ThrowErrorSlowPathCode::EmitNativeCode(FlowGraphCompiler* compiler) {
                           instruction()->token_pos(), try_index_);
   AddMetadataForRuntimeCall(compiler);
   compiler->RecordSafepoint(locs, num_args_);
-  if ((try_index_ != CatchClauseNode::kInvalidTryIndex) ||
-      (compiler->CurrentTryIndex() != CatchClauseNode::kInvalidTryIndex)) {
+  if ((try_index_ != kInvalidTryIndex) ||
+      (compiler->CurrentTryIndex() != kInvalidTryIndex)) {
     Environment* env =
         compiler->SlowPathEnvironmentFor(instruction(), num_args_);
     compiler->RecordCatchEntryMoves(env, try_index_);

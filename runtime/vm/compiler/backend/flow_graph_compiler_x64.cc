@@ -7,7 +7,6 @@
 
 #include "vm/compiler/backend/flow_graph_compiler.h"
 
-#include "vm/ast_printer.h"
 #include "vm/compiler/backend/il_printer.h"
 #include "vm/compiler/backend/locations.h"
 #include "vm/compiler/jit/compiler.h"
@@ -165,9 +164,7 @@ void CompilerDeoptInfoWithStub::GenerateCode(FlowGraphCompiler* compiler,
   }
 
   ASSERT(deopt_env() != NULL);
-
-  __ pushq(CODE_REG);
-  __ Call(*StubCode::Deoptimize_entry());
+  __ call(Address(THR, Thread::deoptimize_entry_offset()));
   set_pc_offset(assembler->CodeSize());
   __ int3();
 #undef __
@@ -764,8 +761,7 @@ void FlowGraphCompiler::GenerateAssertAssignableViaTypeTestingStub(
   ASSERT((sub_type_cache_index + 1) == dst_name_index);
   ASSERT(__ constant_pool_allowed());
 
-  __ movq(subtype_cache_reg,
-          Address::AddressBaseImm32(PP, sub_type_cache_offset));
+  __ movq(subtype_cache_reg, Address(PP, sub_type_cache_offset));
   __ call(FieldAddress(RBX, AbstractType::type_test_stub_entry_point_offset()));
   EmitCallsiteMetadata(token_pos, deopt_id, RawPcDescriptors::kOther, locs);
   __ Bind(&done);
@@ -1048,7 +1044,7 @@ void FlowGraphCompiler::EmitMegamorphicInstanceCall(
   if (FLAG_precompiled_mode) {
     // Megamorphic calls may occur in slow path stubs.
     // If valid use try_index argument.
-    if (try_index == CatchClauseNode::kInvalidTryIndex) {
+    if (try_index == kInvalidTryIndex) {
       try_index = CurrentTryIndex();
     }
     AddDescriptor(RawPcDescriptors::kOther, assembler()->CodeSize(),

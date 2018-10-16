@@ -75,7 +75,6 @@ import 'expression_generator.dart'
         IncompletePropertyAccessGenerator,
         IncompleteSendGenerator,
         IndexedAccessGenerator,
-        IntAccessGenerator,
         LoadLibraryGenerator,
         ParenthesizedExpressionGenerator,
         ParserErrorGenerator,
@@ -807,7 +806,7 @@ abstract class BodyBuilder extends ScopeListener<JumpTarget>
       }
     }
     // No-such-method forwarders get their bodies injected during outline
-    // buliding, so we should skip them here.
+    // building, so we should skip them here.
     bool isNoSuchMethodForwarder = (builder.function.parent is Procedure &&
         (builder.function.parent as Procedure).isNoSuchMethodForwarder);
     if (!builder.isExternal && !isNoSuchMethodForwarder) {
@@ -1140,8 +1139,20 @@ abstract class BodyBuilder extends ScopeListener<JumpTarget>
   @override
   void handleParenthesizedExpression(Token token) {
     debugEvent("ParenthesizedExpression");
-    push(new ParenthesizedExpressionGenerator(
-        this, token.endGroup, popForValue()));
+    Expression value = popForValue();
+    if (value is ShadowLargeIntLiteral) {
+      // We need to know that the expression was parenthesized because we will
+      // treat -n differently from -(n).  If the expression occurs in a double
+      // context, -n is a double literal and -(n) is an application of unary- to
+      // an integer literal.  And in any other context, '-' is part of the
+      // syntax of -n, i.e., -9223372036854775808 is OK and it is the minimum
+      // 64-bit integer, and '-' is an application of unary- in -(n), i.e.,
+      // -(9223372036854775808) is an error because the literal does not fit in
+      // 64-bits.
+      push(value..isParenthesized = true);
+    } else {
+      push(new ParenthesizedExpressionGenerator(this, token.endGroup, value));
+    }
   }
 
   @override
@@ -1831,7 +1842,23 @@ abstract class BodyBuilder extends ScopeListener<JumpTarget>
   @override
   void handleLiteralInt(Token token) {
     debugEvent("LiteralInt");
-    push(IntAccessGenerator.parseIntLiteral(this, token));
+    int value = int.tryParse(token.lexeme);
+    if (!library.loader.target.strongMode) {
+      if (value == null) {
+        push(unhandled(
+            'large integer', 'handleLiteralInt', token.charOffset, uri));
+      } else {
+        push(forest.literalInt(value, token));
+      }
+      return;
+    }
+    // Postpone parsing of literals resulting in a negative value
+    // (hex literals >= 2^63). These are only allowed when not negated.
+    if (value == null || value < 0) {
+      push(forest.literalLargeInt(token.lexeme, token));
+    } else {
+      push(forest.literalInt(value, token));
+    }
   }
 
   @override
@@ -2329,10 +2356,19 @@ abstract class BodyBuilder extends ScopeListener<JumpTarget>
       if (prefix is Generator) {
         name = prefix.qualifiedLookup(suffix);
       } else {
-        String displayName = debugName(getNodeName(prefix), suffix.lexeme);
-        addProblem(fasta.templateNotAType.withArguments(displayName),
-            offsetForToken(beginToken), lengthOfSpan(beginToken, suffix));
-        push(const InvalidType());
+        String name = getNodeName(prefix);
+        String displayName = debugName(name, suffix.lexeme);
+        int offset = offsetForToken(beginToken);
+        push(new UnresolvedType<KernelTypeBuilder>(
+            new KernelNamedTypeBuilder(name, null)
+              ..bind(new KernelInvalidTypeBuilder(
+                  name,
+                  fasta.templateNotAType
+                      .withArguments(displayName)
+                      .withLocation(
+                          uri, offset, lengthOfSpan(beginToken, suffix)))),
+            offset,
+            uri));
         return;
       }
     }
@@ -2818,19 +2854,13 @@ abstract class BodyBuilder extends ScopeListener<JumpTarget>
       Expression receiverValue;
       if (optional("-", token)) {
         operator = "unary-";
-
-        if (receiver is IntAccessGenerator) {
-          receiverValue = receiver.buildNegatedRead();
-        }
       }
       bool isSuper = false;
-      if (receiverValue == null) {
-        if (receiver is ThisAccessGenerator && receiver.isSuper) {
-          isSuper = true;
-          receiverValue = forest.thisExpression(receiver.token);
-        } else {
-          receiverValue = toValue(receiver);
-        }
+      if (receiver is ThisAccessGenerator && receiver.isSuper) {
+        isSuper = true;
+        receiverValue = forest.thisExpression(receiver.token);
+      } else {
+        receiverValue = toValue(receiver);
       }
       push(buildMethodInvocation(receiverValue, new Name(operator),
           forest.argumentsEmpty(noLocation), token.charOffset,
@@ -2880,7 +2910,7 @@ abstract class BodyBuilder extends ScopeListener<JumpTarget>
     pushQualifiedReference(start, periodBeforeName);
   }
 
-  /// A qualfied reference is something that matches one of:
+  /// A qualified reference is something that matches one of:
   ///
   ///     identifier
   ///     identifier typeArguments? '.' identifier
@@ -4614,8 +4644,18 @@ abstract class BodyBuilder extends ScopeListener<JumpTarget>
   }
 
   @override
-  String constructorNameForDiagnostics(String name, {String className}) {
-    className ??= classBuilder.name;
+  String constructorNameForDiagnostics(String name,
+      {String className, bool isSuper: false}) {
+    if (className == null) {
+      Class cls = classBuilder.cls;
+      if (isSuper) {
+        cls = cls.superclass;
+        while (cls.isMixinApplication) {
+          cls = cls.superclass;
+        }
+      }
+      className = cls.name;
+    }
     return name.isEmpty ? className : "$className.$name";
   }
 }

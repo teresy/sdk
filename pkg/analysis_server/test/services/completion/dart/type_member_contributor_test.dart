@@ -3094,7 +3094,7 @@ void main() {C.^ print("something");}''');
     addTestSource('''
         library libA;
         import "testB.dart";
-        part "${convertPathForImport('/testA.dart')}";
+        part "${convertAbsolutePathToUri('/testA.dart')}";
         class A { A({String boo: 'hoo'}) { } }
         main() {new ^}
         var m;''');
@@ -3643,6 +3643,23 @@ class C1 extends C2 implements C3 {
     assertNotSuggested('fs3');
     assertNotSuggested('mi3');
     assertNotSuggested('ms3');
+  }
+
+  test_super_withMixin() async {
+    addTestSource('''
+mixin M {
+  void m() {}
+}
+
+class C with M {
+  void c() {
+    super.^;
+  }
+}
+''');
+    await computeSuggestions();
+    assertNotSuggested('c');
+    assertSuggestMethod('m', 'M', 'void');
   }
 
   test_SwitchStatement_c() async {

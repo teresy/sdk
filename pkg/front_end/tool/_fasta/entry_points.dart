@@ -229,7 +229,7 @@ class CompileTask {
   }
 
   KernelTarget createKernelTarget(
-      DillTarget dillTarget, UriTranslator uriTranslator, bool strongMode) {
+      DillTarget dillTarget, UriTranslator uriTranslator) {
     return new KernelTarget(c.fileSystem, false, dillTarget, uriTranslator,
         uriToSource: c.uriToSource);
   }
@@ -238,8 +238,7 @@ class CompileTask {
     UriTranslator uriTranslator = await c.options.getUriTranslator();
     ticker.logMs("Read packages file");
     DillTarget dillTarget = createDillTarget(uriTranslator);
-    KernelTarget kernelTarget =
-        createKernelTarget(dillTarget, uriTranslator, c.options.strongMode);
+    KernelTarget kernelTarget = createKernelTarget(dillTarget, uriTranslator);
     Uri platform = c.options.sdkSummary;
     if (platform != null) {
       _appendDillForUri(dillTarget, platform);
@@ -330,7 +329,7 @@ Future compilePlatformInternal(CompilerContext c, Uri fullOutput,
   c.options.ticker.logMs("Wrote outline to ${outlineOutput.toFilePath()}");
 
   if (c.options.bytecode) {
-    generateBytecode(result.component, strongMode: c.options.strongMode);
+    generateBytecode(result.component);
   }
 
   await writeComponentToFile(result.component, fullOutput,
@@ -357,7 +356,7 @@ Future<List<Uri>> computeHostDependencies(Uri hostPlatform) async {
   // mode), this is only an approximation, albeit accurate.  Once Fasta is
   // self-hosting, this isn't an approximation. Regardless, strong mode
   // shouldn't affect which files are read.
-  Target hostTarget = getTarget("vm", new TargetFlags(strongMode: true));
+  Target hostTarget = getTarget("vm", new TargetFlags());
   return getDependencies(Platform.script,
       platform: hostPlatform, target: hostTarget);
 }

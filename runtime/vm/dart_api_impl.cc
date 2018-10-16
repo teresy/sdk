@@ -48,7 +48,6 @@
 #include "vm/symbols.h"
 #include "vm/tags.h"
 #include "vm/thread_registry.h"
-#include "vm/timer.h"
 #include "vm/unicode.h"
 #include "vm/uri.h"
 #include "vm/version.h"
@@ -1480,56 +1479,12 @@ Dart_CreateSnapshot(uint8_t** vm_snapshot_data_buffer,
   return Api::Success();
 }
 
-DART_EXPORT bool Dart_IsSnapshot(const uint8_t* buffer, intptr_t buffer_size) {
-  if (buffer_size < Snapshot::kHeaderSize) {
-    return false;
-  }
-  return Snapshot::SetupFromBuffer(buffer) != NULL;
-}
-
 DART_EXPORT bool Dart_IsKernel(const uint8_t* buffer, intptr_t buffer_size) {
   if (buffer_size < 4) {
     return false;
   }
   return (buffer[0] == 0x90) && (buffer[1] == 0xab) && (buffer[2] == 0xcd) &&
          (buffer[3] == 0xef);
-}
-
-DART_EXPORT bool Dart_IsDart2Snapshot(const uint8_t* snapshot_buffer) {
-  if (snapshot_buffer == NULL) {
-    return false;
-  }
-  const Snapshot* snapshot = Snapshot::SetupFromBuffer(snapshot_buffer);
-  if (snapshot == NULL) {
-    return false;
-  }
-  const intptr_t snapshot_size = snapshot->length();
-  const char* expected_version = Version::SnapshotString();
-  ASSERT(expected_version != NULL);
-  const intptr_t version_len = strlen(expected_version);
-  if (snapshot_size < version_len) {
-    return false;
-  }
-
-  const char* version = reinterpret_cast<const char*>(snapshot->content());
-  ASSERT(version != NULL);
-  if (strncmp(version, expected_version, version_len)) {
-    return false;
-  }
-  const char* features = version + version_len;
-  ASSERT(features != NULL);
-  intptr_t pending_len = snapshot_size - version_len;
-  intptr_t buffer_len = Utils::StrNLen(features, pending_len);
-  // if buffer_len is less than pending_len it means we have a null terminated
-  // string and we can safely execute 'strstr' on it.
-  if ((buffer_len < pending_len)) {
-    if (strstr(features, "no-strong")) {
-      return false;
-    } else if (strstr(features, "strong")) {
-      return true;
-    }
-  }
-  return false;
 }
 
 DART_EXPORT char* Dart_IsolateMakeRunnable(Dart_Isolate isolate) {
@@ -4998,6 +4953,11 @@ DART_EXPORT Dart_Handle Dart_LoadScriptFromKernel(const uint8_t* buffer,
   CHECK_CALLBACK_STATE(T);
   CHECK_COMPILATION_ALLOWED(I);
 
+  // The kernel loader is about to allocate a bunch of new libraries, classes,
+  // and functions into old space. Force growth, and use of the bump allocator
+  // instead of freelists.
+  BumpAllocateScope bump_allocate_scope(T);
+
   const char* error = nullptr;
   kernel::Program* program =
       kernel::Program::ReadFromBuffer(buffer, buffer_size, &error);
@@ -5247,6 +5207,11 @@ DART_EXPORT Dart_Handle Dart_LoadLibraryFromKernel(const uint8_t* buffer,
 
   CHECK_CALLBACK_STATE(T);
   CHECK_COMPILATION_ALLOWED(I);
+
+  // The kernel loader is about to allocate a bunch of new libraries, classes,
+  // and functions into old space. Force growth, and use of the bump allocator
+  // instead of freelists.
+  BumpAllocateScope bump_allocate_scope(T);
 
   const char* error = nullptr;
   kernel::Program* program =

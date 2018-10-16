@@ -231,7 +231,7 @@ class KernelLibraryBuilder
         modifiers,
         className,
         typeVariables,
-        applyMixins(supertype, supertypeOffset, className, isMixinDeclaration,
+        applyMixins(supertype, charOffset, className, isMixinDeclaration,
             typeVariables: typeVariables),
         interfaces,
         classScope,

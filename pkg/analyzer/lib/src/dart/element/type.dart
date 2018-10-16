@@ -402,6 +402,9 @@ abstract class FunctionTypeImpl extends TypeImpl implements FunctionType {
    * [element].
    *
    * If [typeArguments] are provided, they are used to instantiate the typedef.
+   *
+   * Note: this constructor mishandles generics.
+   * See https://github.com/dart-lang/sdk/issues/34657.
    */
   factory FunctionTypeImpl.forTypedef(FunctionTypeAliasElement element,
       {List<DartType> typeArguments}) {
@@ -1443,7 +1446,6 @@ class InterfaceTypeImpl extends TypeImpl implements InterfaceType {
       try {
         _typeArguments = _typeArgumentsComputer();
       } on RecursiveInstantiateToBounds {
-        _hasTypeParameterReferenceInBound = true;
         _typeArguments = new List<DartType>.filled(
             element.typeParameters.length,
             element.context.typeProvider.dynamicType);
@@ -1704,6 +1706,14 @@ class InterfaceTypeImpl extends TypeImpl implements InterfaceType {
         if ((mixinType as InterfaceTypeImpl)
             .isMoreSpecificThan(type, withDynamic, visitedElements)) {
           return true;
+        }
+      }
+      if (element.isMixin) {
+        for (InterfaceType constraint in superclassConstraints) {
+          if ((constraint as InterfaceTypeImpl)
+              .isMoreSpecificThan(type, withDynamic, visitedElements)) {
+            return true;
+          }
         }
       }
       // If a type I includes an instance method named `call`, and the type of
@@ -2529,11 +2539,6 @@ abstract class TypeImpl implements DartType {
   final String name;
 
   /**
-   * The cached value for [hasTypeParameterReferenceInBound].
-   */
-  bool _hasTypeParameterReferenceInBound;
-
-  /**
    * Initialize a newly created type to be declared by the given [element] and
    * to have the given [name].
    */
@@ -2544,46 +2549,6 @@ abstract class TypeImpl implements DartType {
 
   @override
   Element get element => _element;
-
-  /**
-   * Return `true` if the type is parameterized and has a type parameter with
-   * the bound that references a type parameter.
-   */
-  bool get hasTypeParameterReferenceInBound {
-    if (_hasTypeParameterReferenceInBound == null) {
-      bool hasTypeParameterReference(DartType type) {
-        if (type == this) {
-          // Cycle detection -- and cycles should be considered unboundable.
-          return true;
-        } else if (type is TypeImpl &&
-            type._hasTypeParameterReferenceInBound == true) {
-          return true;
-        } else if (type is TypeParameterType) {
-          return true;
-        } else if (type is FunctionType) {
-          return (type as TypeImpl).hasTypeParameterReferenceInBound;
-        } else if (type is ParameterizedType) {
-          return type.typeArguments.any(hasTypeParameterReference);
-        } else {
-          return false;
-        }
-      }
-
-      Element element = this.element;
-      if (element is FunctionTypedElement) {
-        _hasTypeParameterReferenceInBound = element.parameters.any(
-                (parameter) => hasTypeParameterReference(parameter.type)) ||
-            (element.returnType != null &&
-                hasTypeParameterReference(element.returnType));
-      } else if (element is TypeParameterizedElement) {
-        _hasTypeParameterReferenceInBound = element.typeParameters
-            .any((parameter) => hasTypeParameterReference(parameter.bound));
-      } else {
-        _hasTypeParameterReferenceInBound = false;
-      }
-    }
-    return _hasTypeParameterReferenceInBound;
-  }
 
   @override
   bool get isBottom => false;
@@ -3431,7 +3396,12 @@ class _FunctionTypeImplLazy extends FunctionTypeImpl {
           "argumentTypes.length (${argumentTypes.length}) != parameterTypes.length (${parameterTypes.length})");
     }
     Element element = this.element;
-    if (prune != null && prune.contains(element)) {
+    Element forCircularity = this.element;
+    if (element is GenericFunctionTypeElement &&
+        element.enclosingElement is FunctionTypeAliasElement) {
+      forCircularity = element.enclosingElement;
+    }
+    if (prune != null && prune.contains(forCircularity)) {
       // Circularity found.  Prune the type declaration.
       return new CircularFunctionTypeImpl();
     }

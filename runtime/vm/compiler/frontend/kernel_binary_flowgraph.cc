@@ -1376,8 +1376,7 @@ Fragment StreamingFlowGraphBuilder::CompleteBodyWithYieldContinuations(
 
   // Prepend an entry corresponding to normal entry to the function.
   yield_continuations().InsertAt(
-      0, YieldContinuation(new (Z) DropTempsInstr(0, NULL),
-                           CatchClauseNode::kInvalidTryIndex));
+      0, YieldContinuation(new (Z) DropTempsInstr(0, NULL), kInvalidTryIndex));
   yield_continuations()[0].entry->LinkTo(body.entry);
 
   // Load :await_jump_var into a temporary.
@@ -3066,23 +3065,27 @@ Fragment StreamingFlowGraphBuilder::BuildPropertySet(TokenPosition* p) {
     instructions += CheckNull(position, receiver, setter_name);
   }
 
-  if (!direct_call.target_.IsNull()) {
+  const String* mangled_name = &setter_name;
+  const Function* direct_call_target = &direct_call.target_;
+  if (I->should_emit_strong_mode_checks() && H.IsRoot(itarget_name)) {
+    mangled_name = &String::ZoneHandle(
+        Z, Function::CreateDynamicInvocationForwarderName(setter_name));
+    if (!direct_call_target->IsNull()) {
+      direct_call_target = &Function::ZoneHandle(
+          direct_call.target_.GetDynamicInvocationForwarder(*mangled_name));
+    }
+  }
+
+  if (!direct_call_target->IsNull()) {
     // TODO(#34162): Pass 'is_unchecked_call' down if/when we feature multiple
     // entry-points in AOT.
     ASSERT(FLAG_precompiled_mode);
     instructions +=
-        StaticCall(position, direct_call.target_, 2, Array::null_array(),
+        StaticCall(position, *direct_call_target, 2, Array::null_array(),
                    ICData::kNoRebind, /*result_type=*/nullptr);
   } else {
     const intptr_t kTypeArgsLen = 0;
     const intptr_t kNumArgsChecked = 1;
-
-    const String* mangled_name = &setter_name;
-    if (!FLAG_precompiled_mode && I->should_emit_strong_mode_checks() &&
-        H.IsRoot(itarget_name)) {
-      mangled_name = &String::ZoneHandle(
-          Z, Function::CreateDynamicInvocationForwarderName(setter_name));
-    }
 
     instructions += InstanceCall(
         position, *mangled_name, Token::kSET, kTypeArgsLen, 2,
@@ -3670,6 +3673,24 @@ Fragment StreamingFlowGraphBuilder::BuildMethodInvocation(TokenPosition* p) {
                               /*clear_temp=*/!is_unchecked_closure_call);
   }
 
+  const String* mangled_name = &name;
+  // Do not mangle == or call:
+  //   * operator == takes an Object so its either not checked or checked
+  //     at the entry because the parameter is marked covariant, neither of
+  //     those cases require a dynamic invocation forwarder;
+  //   * we assume that all closures are entered in a checked way.
+  const Function* direct_call_target = &direct_call.target_;
+  if (I->should_emit_strong_mode_checks() &&
+      (name.raw() != Symbols::EqualOperator().raw()) &&
+      (name.raw() != Symbols::Call().raw()) && H.IsRoot(itarget_name)) {
+    mangled_name = &String::ZoneHandle(
+        Z, Function::CreateDynamicInvocationForwarderName(name));
+    if (!direct_call_target->IsNull()) {
+      direct_call_target = &Function::ZoneHandle(
+          direct_call_target->GetDynamicInvocationForwarder(*mangled_name));
+    }
+  }
+
   if (is_unchecked_closure_call) {
     // Lookup the function in the closure.
     instructions += LoadLocal(receiver_temp);
@@ -3681,27 +3702,18 @@ Fragment StreamingFlowGraphBuilder::BuildMethodInvocation(TokenPosition* p) {
     instructions +=
         B->ClosureCall(position, type_args_len, argument_count, argument_names,
                        /*use_unchecked_entry=*/true);
-  } else if (!direct_call.target_.IsNull()) {
+  } else if (!direct_call_target->IsNull()) {
     // TODO(#34162): Pass 'is_unchecked_call' down if/when we feature multiple
     // entry-points in AOT.
+
+    // Even if TFA infers a concrete receiver type, the static type of the
+    // call-site may still be dynamic and we need to call the dynamic invocation
+    // forwarder to ensure type-checks are performed.
     ASSERT(FLAG_precompiled_mode);
-    instructions += StaticCall(position, direct_call.target_, argument_count,
+    instructions += StaticCall(position, *direct_call_target, argument_count,
                                argument_names, ICData::kNoRebind, &result_type,
                                type_args_len);
   } else {
-    const String* mangled_name = &name;
-    // Do not mangle == or call:
-    //   * operator == takes an Object so its either not checked or checked
-    //     at the entry because the parameter is marked covariant, neither of
-    //     those cases require a dynamic invocation forwarder;
-    //   * we assume that all closures are entered in a checked way.
-    if (!FLAG_precompiled_mode && I->should_emit_strong_mode_checks() &&
-        (name.raw() != Symbols::EqualOperator().raw()) &&
-        (name.raw() != Symbols::Call().raw()) && H.IsRoot(itarget_name)) {
-      mangled_name = &String::ZoneHandle(
-          Z, Function::CreateDynamicInvocationForwarderName(name));
-    }
-
     // TODO(#34162): Pass 'is_unchecked_call' down if/when we feature multiple
     // entry-points in AOT.
     instructions += InstanceCall(
@@ -4364,7 +4376,7 @@ Fragment StreamingFlowGraphBuilder::BuildIsExpression(TokenPosition* p) {
     instructions += PushArgument();
 
     // See if simple instanceOf is applicable.
-    if (dart::FlowGraphBuilder::SimpleInstanceOfType(type)) {
+    if (dart::SimpleInstanceOfType(type)) {
       instructions += Constant(type);
       instructions += PushArgument();  // Type.
       instructions += InstanceCall(
@@ -4401,55 +4413,28 @@ Fragment StreamingFlowGraphBuilder::BuildAsExpression(TokenPosition* p) {
   TokenPosition position = ReadPosition();  // read position.
   if (p != NULL) *p = position;
 
-  uint8_t flags = ReadFlags();  // read flags.
+  const uint8_t flags = ReadFlags();  // read flags.
   const bool is_type_error = (flags & (1 << 0)) != 0;
 
   Fragment instructions = BuildExpression();  // read operand.
 
   const AbstractType& type = T.BuildType();  // read type.
-
-  // The VM does not like an Object_as call with a dynamic type. We need to
-  // special case this situation.
-  const Type& object_type = Type::Handle(Z, Type::ObjectType());
-
   if (type.IsMalformed()) {
     instructions += Drop();
     instructions += ThrowTypeError();
-    return instructions;
-  }
-
-  if (type.IsInstantiated() &&
-      object_type.IsSubtypeOf(type, NULL, NULL, Heap::kOld)) {
+  } else if (type.IsInstantiated() && type.IsTopType()) {
     // We already evaluated the operand on the left and just leave it there as
     // the result of the `obj as dynamic` expression.
-  } else if (is_type_error) {
+  } else {
+    // We do not care whether the 'as' cast as implicitly added by the frontend
+    // or explicitly written by the user, in both cases we use an assert
+    // assignable.
     instructions += LoadLocal(MakeTemporary());
-    instructions += flow_graph_builder_->AssertAssignable(
-        position, type, Symbols::Empty(),
+    instructions += B->AssertAssignable(
+        position, type,
+        is_type_error ? Symbols::Empty() : Symbols::InTypeCast(),
         AssertAssignableInstr::kInsertedByFrontend);
     instructions += Drop();
-  } else {
-    instructions += PushArgument();
-
-    if (!type.IsInstantiated(kCurrentClass)) {
-      instructions += LoadInstantiatorTypeArguments();
-    } else {
-      instructions += NullConstant();
-    }
-    instructions += PushArgument();  // Instantiator type arguments.
-
-    if (!type.IsInstantiated(kFunctions)) {
-      instructions += LoadFunctionTypeArguments();
-    } else {
-      instructions += NullConstant();
-    }
-    instructions += PushArgument();  // Function type arguments.
-
-    instructions += Constant(type);
-    instructions += PushArgument();  // Type.
-
-    instructions += InstanceCall(
-        position, Library::PrivateCoreLibName(Symbols::_as()), Token::kAS, 4);
   }
   return instructions;
 }
@@ -5775,7 +5760,7 @@ Fragment StreamingFlowGraphBuilder::BuildYieldStatement() {
     rethrow += PushArgument();
     rethrow += LoadLocal(stack_trace_var);
     rethrow += PushArgument();
-    rethrow += RethrowException(position, CatchClauseNode::kInvalidTryIndex);
+    rethrow += RethrowException(position, kInvalidTryIndex);
     Drop();
 
     continuation = Fragment(continuation.entry, no_error);

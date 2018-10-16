@@ -242,7 +242,9 @@ class Run extends Step<Uri, int, FastaContext> {
     try {
       var args = <String>[];
       if (context.strongMode) {
+        // TODO(ahe): This argument is probably ignored by the VM.
         args.add('--strong');
+        // TODO(ahe): This argument is probably ignored by the VM.
         args.add('--reify-generic-functions');
       }
       args.add(generated.path);
@@ -276,6 +278,7 @@ class Outline extends Step<TestDescription, Component, FastaContext> {
     StringBuffer errors = new StringBuffer();
     ProcessedOptions options = new ProcessedOptions(
         options: new CompilerOptions()
+          ..legacyMode = !strongMode
           ..onProblem = (FormattedMessage problem, Severity severity,
               List<FormattedMessage> context) {
             if (errors.isNotEmpty) {
@@ -295,7 +298,7 @@ class Outline extends Step<TestDescription, Component, FastaContext> {
       Component platform = await context.loadPlatform();
       Ticker ticker = new Ticker();
       DillTarget dillTarget = new DillTarget(ticker, context.uriTranslator,
-          new TestVmTarget(new TargetFlags(strongMode: strongMode)));
+          new TestVmTarget(new TargetFlags(legacyMode: !strongMode)));
       dillTarget.loader.appendLibraries(platform);
       // We create a new URI translator to avoid reading platform libraries from
       // file system.

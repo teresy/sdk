@@ -38,6 +38,12 @@ void BytecodeMetadataHelper::ReadMetadata(const Function& function) {
 #if !defined(PRODUCT)
   TimelineDurationScope tds(Thread::Current(), Timeline::GetCompilerStream(),
                             "BytecodeMetadataHelper::ReadMetadata");
+  // This increases bytecode reading time by ~7%, so only keep it around for
+  // debugging.
+#if defined(DEBUG)
+  tds.SetNumArguments(1);
+  tds.CopyArgument(0, "Function", function.ToQualifiedCString());
+#endif  // defined(DEBUG)
 #endif  // !defined(PRODUCT)
 
   const intptr_t node_offset = function.kernel_offset();
@@ -540,7 +546,11 @@ intptr_t BytecodeMetadataHelper::ReadPoolEntries(const Function& function,
       case ConstantPoolTag::kNativeEntry: {
         name = H.DartString(helper_->ReadStringReference()).raw();
         obj = NativeEntry(function, name);
-      } break;
+        pool.SetTypeAt(i, ObjectPool::kNativeEntryData,
+                       ObjectPool::kNotPatchable);
+        pool.SetObjectAt(i, obj);
+        continue;
+      }
       case ConstantPoolTag::kSubtypeTestCache: {
         obj = SubtypeTestCache::New();
       } break;
@@ -722,11 +732,7 @@ RawTypedData* BytecodeMetadataHelper::NativeEntry(const Function& function,
   NativeFunction native_function = NULL;
   intptr_t argc_tag = 0;
   if (kind == MethodRecognizer::kUnknown) {
-    if (FLAG_link_natives_lazily) {
-      trampoline = &NativeEntry::BootstrapNativeCallWrapper;
-      native_function =
-          reinterpret_cast<NativeFunction>(&NativeEntry::LinkNativeCall);
-    } else {
+    if (!FLAG_link_natives_lazily) {
       const Class& cls = Class::Handle(zone, function.Owner());
       const Library& library = Library::Handle(zone, cls.library());
       Dart_NativeEntryResolver resolver = library.native_entry_resolver();

@@ -37,6 +37,8 @@ export '../api_prototype/file_system.dart'
 
 export '../api_prototype/kernel_generator.dart' show kernelForProgram;
 
+export '../api_prototype/standard_file_system.dart' show DataFileSystemEntity;
+
 export '../compute_platform_binaries_location.dart'
     show computePlatformBinariesLocation;
 
@@ -104,7 +106,7 @@ InitializedCompilerState initializeCompiler(
 
   CompilerOptions options = new CompilerOptions()
     ..target = target
-    ..strongMode = target.strongMode
+    ..legacyMode = target.legacyMode
     ..linkedDependencies = [sdkPlatformUri]
     ..librariesSpecificationUri = librariesSpecificationUri
     ..packagesFileUri = packagesFileUri;

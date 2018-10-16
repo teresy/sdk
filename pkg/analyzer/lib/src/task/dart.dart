@@ -2855,15 +2855,15 @@ class GenerateHintsTask extends SourceBasedAnalysisTask {
       unit.accept(new Dart2JSVerifier(errorReporter));
     }
     // Dart best practices.
-    InheritanceManager2 inheritanceManager2 =
-        new InheritanceManager2(libraryElement.context.typeSystem);
+    InheritanceManager inheritanceManager = new InheritanceManager(
+        libraryElement,
+        includeAbstractFromSuperclasses: true);
     TypeProvider typeProvider = getRequiredInput(TYPE_PROVIDER_INPUT);
 
     unit.accept(new BestPracticesVerifier(
         errorReporter, typeProvider, libraryElement,
         typeSystem: typeSystem));
-    unit.accept(new OverrideVerifier(
-        inheritanceManager2, libraryElement, errorReporter));
+    unit.accept(new OverrideVerifier(errorReporter, inheritanceManager));
     // Find to-do comments.
     new ToDoFinder(errorReporter).findIn(unit);
     //
@@ -3402,6 +3402,7 @@ class InferStaticVariableTypeTask extends InferStaticVariableTask {
 
     CompilationUnit unit = getRequiredInput(UNIT_INPUT);
     TypeProvider typeProvider = getRequiredInput(TYPE_PROVIDER_INPUT);
+    var inheritance = new InheritanceManager2(context.typeSystem);
 
     // If we're not in a dependency cycle, and we have no type annotation,
     // re-resolve the right hand side and do inference.
@@ -3417,7 +3418,7 @@ class InferStaticVariableTypeTask extends InferStaticVariableTask {
 
       ResolutionContext resolutionContext =
           ResolutionContextBuilder.contextFor(initializer);
-      ResolverVisitor visitor = new ResolverVisitor(
+      ResolverVisitor visitor = new ResolverVisitor(inheritance,
           variable.library, variable.source, typeProvider, errorListener,
           nameScope: resolutionContext.scope);
       if (resolutionContext.enclosingClassDeclaration != null) {
@@ -4021,11 +4022,16 @@ class PartiallyResolveUnitReferencesTask extends SourceBasedAnalysisTask {
     CompilationUnit unit = getRequiredInput(UNIT_INPUT);
     CompilationUnitElement unitElement = unit.declaredElement;
     TypeProvider typeProvider = getRequiredInput(TYPE_PROVIDER_INPUT);
+    var inheritance = new InheritanceManager2(context.typeSystem);
     //
     // Resolve references and record outputs.
     //
-    PartialResolverVisitor visitor = new PartialResolverVisitor(libraryElement,
-        unitElement.source, typeProvider, AnalysisErrorListener.NULL_LISTENER);
+    PartialResolverVisitor visitor = new PartialResolverVisitor(
+        inheritance,
+        libraryElement,
+        unitElement.source,
+        typeProvider,
+        AnalysisErrorListener.NULL_LISTENER);
     unit.accept(visitor);
     //
     // Record outputs.
@@ -4553,12 +4559,14 @@ class ResolveInstanceFieldsInUnitTask extends SourceBasedAnalysisTask {
     LibraryElement libraryElement = getRequiredInput(LIBRARY_INPUT);
     CompilationUnit unit = getRequiredInput(UNIT_INPUT);
     TypeProvider typeProvider = getRequiredInput(TYPE_PROVIDER_INPUT);
+    var inheritance = new InheritanceManager2(context.typeSystem);
 
     CompilationUnitElement unitElement = unit.declaredElement;
     //
     // Resolve references.
     //
     InstanceFieldResolverVisitor visitor = new InstanceFieldResolverVisitor(
+        inheritance,
         libraryElement,
         unitElement.source,
         typeProvider,
@@ -4995,13 +5003,14 @@ class ResolveUnitTask extends SourceBasedAnalysisTask {
     LibraryElement libraryElement = getRequiredInput(LIBRARY_INPUT);
     CompilationUnit unit = getRequiredInput(UNIT_INPUT);
     TypeProvider typeProvider = getRequiredInput(TYPE_PROVIDER_INPUT);
+    var inheritance = new InheritanceManager2(context.typeSystem);
     //
     // Resolve everything.
     //
     CompilationUnitElement unitElement = unit.declaredElement;
     RecordingErrorListener errorListener = new RecordingErrorListener();
-    ResolverVisitor visitor = new ResolverVisitor(
-        libraryElement, unitElement.source, typeProvider, errorListener);
+    ResolverVisitor visitor = new ResolverVisitor(inheritance, libraryElement,
+        unitElement.source, typeProvider, errorListener);
     unit.accept(visitor);
     //
     // Compute constant expressions' dependencies.
@@ -5440,8 +5449,7 @@ class StrongModeVerifyUnitTask extends SourceBasedAnalysisTask {
           typeProvider,
           new StrongTypeSystemImpl(typeProvider,
               implicitCasts: options.implicitCasts,
-              declarationCasts: options.declarationCasts,
-              nonnullableTypes: options.nonnullableTypes),
+              declarationCasts: options.declarationCasts),
           errorListener,
           options);
       checker.visitCompilationUnit(unit);

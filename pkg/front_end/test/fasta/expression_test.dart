@@ -378,8 +378,7 @@ Future<Context> createContext(
   final List<CompilationMessage> errors = <CompilationMessage>[];
 
   final CompilerOptions optionBuilder = new CompilerOptions()
-    ..strongMode = true
-    ..target = new VmTarget(new TargetFlags(strongMode: true))
+    ..target = new VmTarget(new TargetFlags())
     ..reportMessages = true
     ..verbose = true
     ..fileSystem = fs

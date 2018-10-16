@@ -112,17 +112,18 @@ class AstRewriteVisitor extends ScopedVisitor {
             errorReporter.reportErrorForNode(
                 StaticTypeWarningCode
                     .WRONG_NUMBER_OF_TYPE_ARGUMENTS_CONSTRUCTOR,
-                node,
+                typeArguments,
                 [element.name, constructorElement.name]);
           }
           AstFactory astFactory = new AstFactoryImpl();
-          TypeName typeName = astFactory.typeName(target, typeArguments);
+          TypeName typeName = astFactory.typeName(target, null);
           ConstructorName constructorName =
               astFactory.constructorName(typeName, node.operator, methodName);
           InstanceCreationExpression instanceCreationExpression =
               astFactory.instanceCreationExpression(
-                  _getKeyword(node), constructorName, node.argumentList);
-          InterfaceType type = getType(typeSystem, element, typeArguments);
+                  _getKeyword(node), constructorName, node.argumentList,
+                  typeArguments: typeArguments);
+          InterfaceType type = getType(typeSystem, element, null);
           constructorElement =
               type.lookUpConstructor(methodName.name, definingLibrary);
           methodName.staticElement = element;
@@ -179,7 +180,7 @@ class AstRewriteVisitor extends ScopedVisitor {
               errorReporter.reportErrorForNode(
                   StaticTypeWarningCode
                       .WRONG_NUMBER_OF_TYPE_ARGUMENTS_CONSTRUCTOR,
-                  node,
+                  typeArguments,
                   [element.name, constructorElement.name]);
             }
             AstFactory astFactory = new AstFactoryImpl();
@@ -880,8 +881,8 @@ class BestPracticesVerifier extends RecursiveAstVisitor<Object> {
         return;
       }
       ClassElement definingClass = element.enclosingElement;
-      ClassDeclaration accessingClass =
-          identifier.getAncestor((AstNode node) => node is ClassDeclaration);
+      ClassOrMixinDeclaration accessingClass = identifier
+          .getAncestor((AstNode node) => node is ClassOrMixinDeclaration);
       if (_hasTypeOrSuperType(
           accessingClass?.declaredElement, definingClass.type)) {
         return;
@@ -3816,10 +3817,14 @@ class InstanceFieldResolverVisitor extends ResolverVisitor {
   /// resolution. The [nameScope] is the scope used to resolve identifiers in
   /// the node that will first be visited.  If `null` or unspecified, a new
   /// [LibraryScope] will be created based on the [definingLibrary].
-  InstanceFieldResolverVisitor(LibraryElement definingLibrary, Source source,
-      TypeProvider typeProvider, AnalysisErrorListener errorListener,
+  InstanceFieldResolverVisitor(
+      InheritanceManager2 inheritance,
+      LibraryElement definingLibrary,
+      Source source,
+      TypeProvider typeProvider,
+      AnalysisErrorListener errorListener,
       {Scope nameScope})
-      : super(definingLibrary, source, typeProvider, errorListener,
+      : super(inheritance, definingLibrary, source, typeProvider, errorListener,
             nameScope: nameScope);
 
   /// Resolve the instance fields in the given compilation unit [node].
@@ -3893,30 +3898,27 @@ class InstanceFieldResolverVisitor extends ResolverVisitor {
 /// compilation unit to verify that if they have an override annotation it is
 /// being used correctly.
 class OverrideVerifier extends RecursiveAstVisitor {
-  /// The inheritance manager used to find overridden methods.
-  final InheritanceManager2 _inheritance;
-
-  /// The library being verified.
-  final LibraryElement _library;
-
   /// The error reporter used to report errors.
   final ErrorReporter _errorReporter;
 
-  /// The interface of the current class.
-  Interface _currentInterface;
+  /// The inheritance manager used to find overridden methods.
+  final InheritanceManager _manager;
+
+  /// The [ClassElement] of the current [ClassDeclaration].
+  ClassElement _currentClass;
 
   /// Initialize a newly created verifier to look for inappropriate uses of the
   /// override annotation.
   ///
   /// @param errorReporter the error reporter used to report errors
   /// @param manager the inheritance manager used to find overridden methods
-  OverrideVerifier(this._inheritance, this._library, this._errorReporter);
+  OverrideVerifier(this._errorReporter, this._manager);
 
   @override
   visitClassDeclaration(ClassDeclaration node) {
-    _currentInterface = _inheritance.getInterface(node.declaredElement.type);
+    _currentClass = node.declaredElement;
     super.visitClassDeclaration(node);
-    _currentInterface = null;
+    _currentClass = null;
   }
 
   @override
@@ -3924,11 +3926,16 @@ class OverrideVerifier extends RecursiveAstVisitor {
     for (VariableDeclaration field in node.fields.variables) {
       FieldElement fieldElement = field.declaredElement;
       if (fieldElement.hasOverride) {
-        if (!_isOverride(fieldElement.getter) &&
-            !_isOverride(fieldElement.setter)) {
-          _errorReporter.reportErrorForNode(
-              HintCode.OVERRIDE_ON_NON_OVERRIDING_FIELD, field.name);
-        }
+        PropertyAccessorElement getter = fieldElement.getter;
+        if (getter != null && _isOverride(getter)) continue;
+
+        PropertyAccessorElement setter = fieldElement.setter;
+        if (setter != null && _isOverride(setter)) continue;
+
+        _errorReporter.reportErrorForNode(
+          HintCode.OVERRIDE_ON_NON_OVERRIDING_FIELD,
+          field.name,
+        );
       }
     }
   }
@@ -3936,31 +3943,38 @@ class OverrideVerifier extends RecursiveAstVisitor {
   @override
   visitMethodDeclaration(MethodDeclaration node) {
     ExecutableElement element = node.declaredElement;
-    if (element.hasOverride) {
-      if (!_isOverride(element)) {
-        if (element is MethodElement) {
+    if (element.hasOverride && !_isOverride(element)) {
+      if (element is MethodElement) {
+        _errorReporter.reportErrorForNode(
+          HintCode.OVERRIDE_ON_NON_OVERRIDING_METHOD,
+          node.name,
+        );
+      } else if (element is PropertyAccessorElement) {
+        if (element.isGetter) {
           _errorReporter.reportErrorForNode(
-              HintCode.OVERRIDE_ON_NON_OVERRIDING_METHOD, node.name);
-        } else if (element is PropertyAccessorElement) {
-          if (element.isGetter) {
-            _errorReporter.reportErrorForNode(
-                HintCode.OVERRIDE_ON_NON_OVERRIDING_GETTER, node.name);
-          } else {
-            _errorReporter.reportErrorForNode(
-                HintCode.OVERRIDE_ON_NON_OVERRIDING_SETTER, node.name);
-          }
+            HintCode.OVERRIDE_ON_NON_OVERRIDING_GETTER,
+            node.name,
+          );
+        } else {
+          _errorReporter.reportErrorForNode(
+            HintCode.OVERRIDE_ON_NON_OVERRIDING_SETTER,
+            node.name,
+          );
         }
       }
     }
   }
 
-  /// Return `true` if the [member] overrides a member from the superinterface.
+  @override
+  visitMixinDeclaration(MixinDeclaration node) {
+    _currentClass = node.declaredElement;
+    super.visitMixinDeclaration(node);
+    _currentClass = null;
+  }
+
+  /// Return `true` if the [member] overrides a member from a superinterface.
   bool _isOverride(ExecutableElement member) {
-    if (member == null) {
-      return false;
-    }
-    var name = new Name(_library.source.uri, member.name);
-    return _currentInterface.superInterface.containsKey(name);
+    return _manager.lookupInheritance(_currentClass, member.name) != null;
   }
 }
 
@@ -3989,10 +4003,14 @@ class PartialResolverVisitor extends ResolverVisitor {
   /// created based on [definingLibrary]. The [typeAnalyzerFactory] is used to
   /// create the type analyzer.  If `null` or unspecified, a type analyzer of
   /// type [StaticTypeAnalyzer] will be created.
-  PartialResolverVisitor(LibraryElement definingLibrary, Source source,
-      TypeProvider typeProvider, AnalysisErrorListener errorListener,
+  PartialResolverVisitor(
+      InheritanceManager2 inheritance,
+      LibraryElement definingLibrary,
+      Source source,
+      TypeProvider typeProvider,
+      AnalysisErrorListener errorListener,
       {Scope nameScope})
-      : super(definingLibrary, source, typeProvider, errorListener,
+      : super(inheritance, definingLibrary, source, typeProvider, errorListener,
             nameScope: nameScope);
 
   @override
@@ -4145,6 +4163,11 @@ class ResolverErrorCode extends ErrorCode {
 /// Instances of the class `ResolverVisitor` are used to resolve the nodes
 /// within a single compilation unit.
 class ResolverVisitor extends ScopedVisitor {
+  /**
+   * The manager for the inheritance mappings.
+   */
+  final InheritanceManager2 inheritance;
+
   /// The object used to resolve the element associated with the current node.
   ElementResolver elementResolver;
 
@@ -4210,8 +4233,12 @@ class ResolverVisitor extends ScopedVisitor {
   /// created based on [definingLibrary]. The [typeAnalyzerFactory] is used to
   /// create the type analyzer.  If `null` or unspecified, a type analyzer of
   /// type [StaticTypeAnalyzer] will be created.
-  ResolverVisitor(LibraryElement definingLibrary, Source source,
-      TypeProvider typeProvider, AnalysisErrorListener errorListener,
+  ResolverVisitor(
+      this.inheritance,
+      LibraryElement definingLibrary,
+      Source source,
+      TypeProvider typeProvider,
+      AnalysisErrorListener errorListener,
       {Scope nameScope,
       bool propagateTypes: true,
       reportConstEvaluationErrors: true})
@@ -4599,12 +4626,14 @@ class ResolverVisitor extends ScopedVisitor {
           contextType = leftType;
         }
         InferenceContext.setType(rightOperand, contextType);
-      } else if (node.staticElement != null &&
-          node.staticElement.parameters.isNotEmpty) {
-        // If this is a user-defined operator, set the right operand context
-        // using the operator method's parameter type.
-        var rightParam = node.staticElement.parameters[0];
-        InferenceContext.setType(rightOperand, rightParam.type);
+      } else {
+        var invokeType = node.staticInvokeType;
+        if (invokeType != null && invokeType.parameters.isNotEmpty) {
+          // If this is a user-defined operator, set the right operand context
+          // using the operator method's parameter type.
+          var rightParam = invokeType.parameters[0];
+          InferenceContext.setType(rightOperand, rightParam.type);
+        }
       }
       rightOperand?.accept(this);
     }
@@ -7145,6 +7174,37 @@ class TypeNameResolver {
       } else if (_isTypeNameInTypeArgumentList(node)) {
         reportErrorForNode(StaticTypeWarningCode.NON_TYPE_AS_TYPE_ARGUMENT,
             typeName, [typeName.name]);
+      } else if (typeName is PrefixedIdentifier &&
+          node.parent is ConstructorName &&
+          argumentList != null) {
+        SimpleIdentifier prefix = typeName.prefix;
+        SimpleIdentifier identifier = typeName.identifier;
+        Element prefixElement = nameScope.lookup(prefix, definingLibrary);
+        ConstructorElement constructorElement;
+        if (prefixElement is ClassElement) {
+          constructorElement =
+              prefixElement.getNamedConstructor(identifier.name);
+        }
+        if (constructorElement != null) {
+          reportErrorForNode(
+              StaticTypeWarningCode.WRONG_NUMBER_OF_TYPE_ARGUMENTS_CONSTRUCTOR,
+              argumentList,
+              [prefix.name, identifier.name]);
+          prefix.staticElement = prefixElement;
+          prefix.staticType = constructorElement.enclosingElement.type;
+          identifier.staticElement = constructorElement;
+          identifier.staticType = constructorElement.type;
+          typeName.staticType = constructorElement.enclosingElement.type;
+          (node.parent as ConstructorName).staticElement = constructorElement;
+          AstNode grandParent = node.parent.parent;
+          if (grandParent is InstanceCreationExpression) {
+            grandParent.staticElement = constructorElement;
+            grandParent.staticType = typeName.staticType;
+          }
+        } else {
+          reportErrorForNode(
+              StaticWarningCode.UNDEFINED_CLASS, typeName, [typeName.name]);
+        }
       } else {
         reportErrorForNode(
             StaticWarningCode.UNDEFINED_CLASS, typeName, [typeName.name]);

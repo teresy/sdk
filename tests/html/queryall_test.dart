@@ -63,7 +63,7 @@ main() {
 
   test('queryAll-where', () {
     List<Element> all = querySelectorAll('*');
-    Iterable<CanvasElement> canvases = all.where((e) => e is CanvasElement);
+    Iterable<CanvasElement> canvases = all.whereType<CanvasElement>();
     for (var e in canvases) {
       expect(e is CanvasElement, isTrue);
     }

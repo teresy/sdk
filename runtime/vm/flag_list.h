@@ -163,8 +163,6 @@ constexpr bool kDartPrecompiledRuntime = false;
     "Stress test async stack traces")                                          \
   P(strong, bool, true, "Enable strong mode.")                                 \
   P(sync_async, bool, true, "Start `async` functions synchronously.")          \
-  R(support_ast_printer, false, bool, true, "Support the AST printer.")        \
-  R(support_compiler_stats, false, bool, true, "Support compiler stats.")      \
   R(support_disassembler, false, bool, true, "Support the disassembler.")      \
   R(support_il_printer, false, bool, true, "Support the IL printer.")          \
   C(support_reload, false, false, bool, true, "Support isolate reload.")       \
@@ -211,6 +209,7 @@ constexpr bool kDartPrecompiledRuntime = false;
     "Enable magical pragmas for testing purposes. Use at your own risk!")      \
   R(eliminate_type_checks, true, bool, true,                                   \
     "Eliminate type checks when allowed by static type analysis.")             \
-  P(enable_interpreter, bool, false, "Enable interpreting kernel bytecode.")
+  P(enable_interpreter, bool, false, "Enable interpreting kernel bytecode.")   \
+  D(support_rr, bool, false, "Support running within RR.")
 
 #endif  // RUNTIME_VM_FLAG_LIST_H_

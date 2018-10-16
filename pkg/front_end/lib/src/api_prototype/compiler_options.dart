@@ -6,13 +6,9 @@ library front_end.compiler_options;
 
 import 'package:kernel/target/targets.dart' show Target;
 
-import '../base/performance_logger.dart' show PerformanceLog;
-
 import '../fasta/fasta_codes.dart' show FormattedMessage;
 
 import '../fasta/severity.dart' show Severity;
-
-import 'byte_store.dart' show ByteStore, NullByteStore;
 
 import 'compilation_message.dart' show CompilationMessage;
 
@@ -132,12 +128,6 @@ class CompilerOptions {
   /// file system.  TODO(paulberry): fix this.
   FileSystem fileSystem = StandardFileSystem.instance;
 
-  /// The byte storage to access serialized data.
-  ByteStore byteStore = new NullByteStore();
-
-  /// The logger to report compilation progress.
-  PerformanceLog logger = new PerformanceLog(new StringBuffer());
-
   /// Whether to generate code for the SDK.
   ///
   /// By default the front end resolves components using a prebuilt SDK summary.
@@ -147,8 +137,8 @@ class CompilerOptions {
   @deprecated
   bool chaseDependencies;
 
-  /// Whether to interpret Dart sources in strong-mode.
-  bool strongMode = true;
+  /// True if enabling legacy mode (Dart 1 compatibility).
+  bool legacyMode = false;
 
   /// Patch files to apply on the core libraries for a specific target platform.
   ///

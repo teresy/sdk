@@ -47,7 +47,7 @@ class InheritanceManager2 {
   /// members, not necessary accessible in all libraries.
   Interface getInterface(InterfaceType type) {
     if (type == null) {
-      return const Interface._(const {}, const {}, const [{}], const []);
+      return const Interface._(const {}, const [{}], const []);
     }
 
     var result = _interfaces[type];
@@ -55,22 +55,21 @@ class InheritanceManager2 {
       return result;
     }
 
-    _interfaces[type] = const Interface._(
-      const {},
-      const {},
-      const [{}],
-      const [],
-    );
-    Map<Name, FunctionType> superInterface = {};
+    _interfaces[type] = const Interface._(const {}, const [{}], const []);
     Map<Name, FunctionType> map = {};
-    List<Conflict> conflicts = null;
     List<Map<Name, FunctionType>> superImplemented = [];
+    List<Conflict> conflicts = null;
 
     // If a class declaration has a member declaration, the signature of that
     // member declaration becomes the signature in the interface.
     _addTypeMembers(map, type);
 
     Map<Name, List<FunctionType>> namedCandidates = {};
+
+    for (var interface in type.interfaces) {
+      _addCandidates(namedCandidates, interface);
+    }
+
     if (type.element.isMixin) {
       for (var constraint in type.superclassConstraints) {
         _addCandidates(namedCandidates, constraint);
@@ -79,11 +78,7 @@ class InheritanceManager2 {
       // `mixin M on S1, S2 {}` can call using `super` any instance member
       // from its superclass constraints, whether it is abstract or concrete.
       Map<Name, FunctionType> mixinSuperClass = {};
-      _findMostSpecificFromNamedCandidates(
-        namedCandidates,
-        superInterface,
-        mixinSuperClass,
-      );
+      _findMostSpecificFromNamedCandidates(mixinSuperClass, namedCandidates);
       superImplemented.add(mixinSuperClass);
     } else {
       Map<Name, FunctionType> implemented;
@@ -106,25 +101,16 @@ class InheritanceManager2 {
       }
     }
 
-    for (var interface in type.interfaces) {
-      _addCandidates(namedCandidates, interface);
-    }
-
     // If a class declaration does not have a member declaration with a
     // particular name, but some super-interfaces do have a member with that
     // name, it's a compile-time error if there is no signature among the
     // super-interfaces that is a valid override of all the other
     // super-interface signatures with the same name. That "most specific"
     // signature becomes the signature of the class's interface.
-    conflicts = _findMostSpecificFromNamedCandidates(
-      namedCandidates,
-      superInterface,
-      map,
-    );
+    conflicts = _findMostSpecificFromNamedCandidates(map, namedCandidates);
 
     var interface = new Interface._(
       map,
-      superInterface,
       superImplemented,
       conflicts ?? const [],
     );
@@ -151,11 +137,11 @@ class InheritanceManager2 {
     bool forSuper: false,
   }) {
     if (forSuper) {
-      var supers = getInterface(type)._superImplemented;
+      var superImplemented = getInterface(type)._superImplemented;
       if (forMixinIndex >= 0) {
-        return supers[forMixinIndex][name];
+        return superImplemented[forMixinIndex][name];
       }
-      return supers.last[name];
+      return superImplemented.last[name];
     }
     if (concrete) {
       return _getImplemented(type)[name];
@@ -237,42 +223,42 @@ class InheritanceManager2 {
   }
 
   /// The given [namedCandidates] maps names to candidates from direct
-  /// superinterfaces.  Find the most specific signature, and put it into both
-  /// [superInterface].  If the class itself does not define the name, put it
-  /// also into the class interface [map].  If there is no such single most
-  /// specific signature (i.e. no valid override), then add a new conflict
-  /// description.
+  /// superinterfaces.  Find the most specific signature, and put it into the
+  /// [map], if there is no one yet (from the class itself).  If there is no
+  /// such single most specific signature (i.e. no valid override), then add a
+  /// new conflict description.
   List<Conflict> _findMostSpecificFromNamedCandidates(
-    Map<Name, List<FunctionType>> namedCandidates,
-    Map<Name, FunctionType> superInterface,
-    Map<Name, FunctionType> map,
-  ) {
+      Map<Name, FunctionType> map,
+      Map<Name, List<FunctionType>> namedCandidates) {
     List<Conflict> conflicts = null;
 
     for (var name in namedCandidates.keys) {
-      var isDefinedByClass = map.containsKey(name);
+      if (map.containsKey(name)) {
+        continue;
+      }
+
       var candidates = namedCandidates[name];
 
       // If just one candidate, it is always valid.
       if (candidates.length == 1) {
-        superInterface[name] = candidates[0];
-        if (!isDefinedByClass) {
-          map[name] = candidates[0];
-        }
+        map[name] = candidates[0];
         continue;
       }
 
       // Check for a getter/method conflict.
-      if (!isDefinedByClass) {
-        var conflict = _checkForGetterMethodConflict(name, candidates);
-        if (conflict != null) {
-          conflicts ??= <Conflict>[];
-          conflicts.add(conflict);
-        }
+      var conflict = _checkForGetterMethodConflict(name, candidates);
+      if (conflict != null) {
+        conflicts ??= <Conflict>[];
+        conflicts.add(conflict);
       }
 
+      // Candidates are recorded in forward order, so
+      // `class X extends S with M1, M2 implements I1, I2 {}` will record
+      // candidates from [I1, I2, S, M1, M2]. But during method lookup
+      // candidates should be considered in backward order, i.e. from `M2`,
+      // then from `M1`, then from `S`.
       FunctionType validOverride;
-      for (var i = 0; i < candidates.length; i++) {
+      for (var i = candidates.length - 1; i >= 0; i--) {
         validOverride = candidates[i];
         for (var j = 0; j < candidates.length; j++) {
           var candidate = candidates[j];
@@ -287,11 +273,8 @@ class InheritanceManager2 {
       }
 
       if (validOverride != null) {
-        superInterface[name] = validOverride;
-        if (!isDefinedByClass) {
-          map[name] = validOverride;
-        }
-      } else if (!isDefinedByClass) {
+        map[name] = validOverride;
+      } else {
         conflicts ??= <Conflict>[];
         conflicts.add(new Conflict(name, candidates));
       }
@@ -383,9 +366,6 @@ class Interface {
   /// The map of names to their signature in the interface.
   final Map<Name, FunctionType> map;
 
-  /// The map of names to their signature in superinterfaces.
-  final Map<Name, FunctionType> superInterface;
-
   /// Each item of this list maps names to their concrete implementations.
   /// The first item of the list is the nominal superclass, next the nominal
   /// superclass plus the first mixin, etc. So, for the class like
@@ -397,12 +377,7 @@ class Interface {
   /// members of the class.
   final List<Conflict> conflicts;
 
-  const Interface._(
-    this.map,
-    this.superInterface,
-    this._superImplemented,
-    this.conflicts,
-  );
+  const Interface._(this.map, this._superImplemented, this.conflicts);
 }
 
 /// A public name, or a private name qualified by a library URI.

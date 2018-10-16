@@ -460,13 +460,12 @@ class Compile extends Step<Example, Null, MessageTestSuite> {
         new CompilerOptions()
           ..sdkSummary = computePlatformBinariesLocation()
               .resolve("vm_platform_strong.dill")
-          ..target = new VmTarget(new TargetFlags(strongMode: true))
+          ..target = new VmTarget(new TargetFlags())
           ..fileSystem = new HybridFileSystem(suite.fileSystem)
           ..onProblem = (FormattedMessage problem, Severity severity,
               List<FormattedMessage> context) {
             problems.add([problem, severity]);
-          }
-          ..strongMode = true,
+          },
         main,
         output);
 

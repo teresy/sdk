@@ -1021,8 +1021,7 @@ UnboxedConstantInstr::UnboxedConstantInstr(const Object& value,
       constant_address_(0) {
   if (representation_ == kUnboxedDouble) {
     ASSERT(value.IsDouble());
-    constant_address_ =
-        FlowGraphBuilder::FindDoubleConstant(Double::Cast(value).value());
+    constant_address_ = FindDoubleConstant(Double::Cast(value).value());
   }
 }
 
@@ -1048,7 +1047,7 @@ GraphEntryInstr::GraphEntryInstr(const ParsedFunction& parsed_function,
                                  TargetEntryInstr* normal_entry,
                                  intptr_t osr_id)
     : BlockEntryInstr(0,
-                      CatchClauseNode::kInvalidTryIndex,
+                      kInvalidTryIndex,
                       CompilerState::Current().GetNextDeoptId()),
       parsed_function_(parsed_function),
       normal_entry_(normal_entry),
@@ -2167,9 +2166,9 @@ RawInteger* UnaryIntegerOpInstr::Evaluate(const Integer& value) const {
 
     case Token::kBIT_NOT:
       if (value.IsSmi()) {
-        result = Integer::New(~Smi::Cast(value).Value());
+        result = Integer::New(~Smi::Cast(value).Value(), Heap::kOld);
       } else if (value.IsMint()) {
-        result = Integer::New(~Mint::Cast(value).value());
+        result = Integer::New(~Mint::Cast(value).value(), Heap::kOld);
       }
       break;
 
