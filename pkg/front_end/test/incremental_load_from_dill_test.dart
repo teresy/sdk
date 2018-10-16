@@ -136,10 +136,11 @@ Future<Null> basicTest(YamlMap sourceFiles, String entryPoint, bool strong,
     }
     String source = sourceFiles[filename];
     if (filename == ".packages") {
-      source = substituteVariables(source, outDir.uri);
       packagesUri = uri;
     }
-    new File.fromUri(uri).writeAsStringSync(source);
+    File file = new File.fromUri(uri);
+    await file.parent.create(recursive: true);
+    await file.writeAsString(source);
   }
   for (String invalidateFilename in invalidateFilenames) {
     if (invalidateFilename.startsWith('package:')) {
@@ -180,7 +181,7 @@ Future<Null> basicTest(YamlMap sourceFiles, String entryPoint, bool strong,
 }
 
 Future<Null> newWorldTest(bool strong, List worlds) async {
-  final Uri sdkRoot = computePlatformBinariesLocation();
+  final Uri sdkRoot = computePlatformBinariesLocation(forceBuildDir: true);
   final Uri base = Uri.parse("org-dartlang-test:///");
   final Uri sdkSummary = base.resolve("vm_platform.dill");
   final Uri initializeFrom = base.resolve("initializeFrom.dill");
@@ -226,7 +227,6 @@ Future<Null> newWorldTest(bool strong, List worlds) async {
       String data = sourceFiles[filename] ?? "";
       Uri uri = base.resolve(filename);
       if (filename == ".packages") {
-        data = substituteVariables(data, base);
         packagesUri = uri;
       }
       fs.entityForUri(uri).writeAsStringSync(data);
@@ -300,9 +300,7 @@ Future<Null> newWorldTest(bool strong, List worlds) async {
             world["invalidate"].length, filteredInvalidated?.length ?? 0);
         List expectedInvalidatedUri = world["expectedInvalidatedUri"];
         if (expectedInvalidatedUri != null) {
-          Expect.setEquals(
-              expectedInvalidatedUri
-                  .map((s) => Uri.parse(substituteVariables(s, base))),
+          Expect.setEquals(expectedInvalidatedUri.map((s) => base.resolve(s)),
               filteredInvalidated);
         }
       } else {
@@ -358,10 +356,10 @@ void checkIsEqual(List<int> a, List<int> b) {
 }
 
 CompilerOptions getOptions(bool strong) {
-  final Uri sdkRoot = computePlatformBinariesLocation();
+  final Uri sdkRoot = computePlatformBinariesLocation(forceBuildDir: true);
   CompilerOptions options = new CompilerOptions()
     ..sdkRoot = sdkRoot
-    ..target = new VmTarget(new TargetFlags(strongMode: strong))
+    ..target = new VmTarget(new TargetFlags(legacyMode: !strong))
     ..librariesSpecificationUri = Uri.base.resolve("sdk/lib/libraries.json")
     ..onProblem = (FormattedMessage problem, Severity severity,
         List<FormattedMessage> context) {
@@ -369,7 +367,7 @@ CompilerOptions getOptions(bool strong) {
         Expect.fail("Unexpected error: ${problem.formatted}");
       }
     }
-    ..strongMode = strong;
+    ..legacyMode = !strong;
   if (strong) {
     options.sdkSummary = sdkRoot.resolve("vm_platform_strong.dill");
   } else {
@@ -452,10 +450,6 @@ Future<bool> initializedCompile(
   Expect.isTrue(emptyLibUris.isEmpty);
 
   return result;
-}
-
-String substituteVariables(String source, Uri base) {
-  return source.replaceAll(r"${outDirUri}", "${base}");
 }
 
 class TestIncrementalCompiler extends IncrementalCompiler {

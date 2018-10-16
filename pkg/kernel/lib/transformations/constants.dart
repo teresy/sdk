@@ -30,7 +30,7 @@ import '../type_environment.dart';
 
 Component transformComponent(Component component, ConstantsBackend backend,
     {bool keepFields: false,
-    bool strongMode: false,
+    bool legacyMode: false,
     bool enableAsserts: false,
     bool evaluateAnnotations: true,
     CoreTypes coreTypes,
@@ -40,11 +40,11 @@ Component transformComponent(Component component, ConstantsBackend backend,
   hierarchy ??= new ClassHierarchy(component);
 
   final typeEnvironment =
-      new TypeEnvironment(coreTypes, hierarchy, strongMode: strongMode);
+      new TypeEnvironment(coreTypes, hierarchy, strongMode: !legacyMode);
 
   transformLibraries(component.libraries, backend, coreTypes, typeEnvironment,
       keepFields: keepFields,
-      strongMode: strongMode,
+      legacyMode: legacyMode,
       enableAsserts: enableAsserts,
       evaluateAnnotations: evaluateAnnotations,
       errorReporter: errorReporter);
@@ -54,9 +54,9 @@ Component transformComponent(Component component, ConstantsBackend backend,
 void transformLibraries(List<Library> libraries, ConstantsBackend backend,
     CoreTypes coreTypes, TypeEnvironment typeEnvironment,
     {bool keepFields: false,
+    bool legacyMode: false,
     bool keepVariables: false,
     bool evaluateAnnotations: true,
-    bool strongMode: false,
     bool enableAsserts: false,
     ErrorReporter errorReporter: const _SimpleErrorReporter()}) {
   final ConstantsTransformer constantsTransformer = new ConstantsTransformer(
@@ -66,9 +66,9 @@ void transformLibraries(List<Library> libraries, ConstantsBackend backend,
       evaluateAnnotations,
       coreTypes,
       typeEnvironment,
-      strongMode,
       enableAsserts,
-      errorReporter);
+      errorReporter,
+      legacyMode: legacyMode);
   for (final Library library in libraries) {
     constantsTransformer.convertLibrary(library);
   }
@@ -91,11 +91,12 @@ class ConstantsTransformer extends Transformer {
       this.evaluateAnnotations,
       this.coreTypes,
       this.typeEnvironment,
-      bool strongMode,
       bool enableAsserts,
-      ErrorReporter errorReporter)
-      : constantEvaluator = new ConstantEvaluator(backend, typeEnvironment,
-            coreTypes, strongMode, enableAsserts, errorReporter);
+      ErrorReporter errorReporter,
+      {bool legacyMode: false})
+      : constantEvaluator = new ConstantEvaluator(
+            backend, typeEnvironment, coreTypes, enableAsserts,
+            legacyMode: legacyMode, errorReporter: errorReporter);
 
   // Transform the library/class members:
 
@@ -164,6 +165,10 @@ class ConstantsTransformer extends Transformer {
   visitTypedef(Typedef node) {
     constantEvaluator.withNewEnvironment(() {
       transformAnnotations(node.annotations, node);
+      transformList(node.typeParameters, this, node);
+      transformList(node.typeParametersOfFunctionType, this, node);
+      transformList(node.positionalParameters, this, node);
+      transformList(node.namedParameters, this, node);
     });
     return node;
   }
@@ -206,6 +211,7 @@ class ConstantsTransformer extends Transformer {
         i < positionalParameterCount;
         ++i) {
       final VariableDeclaration variable = node.positionalParameters[i];
+      transformAnnotations(variable.annotations, variable);
       if (variable.initializer != null) {
         variable.initializer =
             tryEvaluateAndTransformWithContext(variable, variable.initializer)
@@ -213,6 +219,7 @@ class ConstantsTransformer extends Transformer {
       }
     }
     for (final VariableDeclaration variable in node.namedParameters) {
+      transformAnnotations(variable.annotations, variable);
       if (variable.initializer != null) {
         variable.initializer =
             tryEvaluateAndTransformWithContext(variable, variable.initializer)
@@ -356,7 +363,7 @@ class ConstantEvaluator extends RecursiveVisitor {
   final ConstantsBackend backend;
   final CoreTypes coreTypes;
   final TypeEnvironment typeEnvironment;
-  final bool strongMode;
+  final bool legacyMode;
   final bool enableAsserts;
   final ErrorReporter errorReporter;
 
@@ -372,9 +379,10 @@ class ConstantEvaluator extends RecursiveVisitor {
   InstanceBuilder instanceBuilder;
   EvaluationEnvironment env;
 
-  ConstantEvaluator(this.backend, this.typeEnvironment, this.coreTypes,
-      this.strongMode, this.enableAsserts,
-      [this.errorReporter = const _SimpleErrorReporter()])
+  ConstantEvaluator(
+      this.backend, this.typeEnvironment, this.coreTypes, this.enableAsserts,
+      {this.legacyMode: false,
+      this.errorReporter = const _SimpleErrorReporter()})
       : canonicalizationCache = <Constant, Constant>{},
         nodeCache = <Node, Constant>{};
 
@@ -1189,7 +1197,7 @@ class ConstantEvaluator extends RecursiveVisitor {
   }
 
   int _wrapAroundInteger(int value) {
-    if (strongMode) {
+    if (!legacyMode) {
       return value.toSigned(64);
     }
     return value;

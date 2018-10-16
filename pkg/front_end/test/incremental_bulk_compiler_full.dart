@@ -56,7 +56,7 @@ class Context extends ChainContext {
 }
 
 CompilerOptions getOptions(bool strong) {
-  final Uri sdkRoot = computePlatformBinariesLocation();
+  final Uri sdkRoot = computePlatformBinariesLocation(forceBuildDir: true);
   var options = new CompilerOptions()
     ..sdkRoot = sdkRoot
     ..librariesSpecificationUri = Uri.base.resolve("sdk/lib/libraries.json")
@@ -64,13 +64,11 @@ CompilerOptions getOptions(bool strong) {
         List<FormattedMessage> context) {
       // ignore
     }
-    ..strongMode = strong;
+    ..legacyMode = !strong;
   if (strong) {
-    options.sdkSummary =
-        computePlatformBinariesLocation().resolve("vm_platform_strong.dill");
+    options.sdkSummary = sdkRoot.resolve("vm_platform_strong.dill");
   } else {
-    options.sdkSummary =
-        computePlatformBinariesLocation().resolve("vm_platform.dill");
+    options.sdkSummary = sdkRoot.resolve("vm_platform.dill");
   }
   return options;
 }
@@ -155,7 +153,7 @@ class RunTest extends Step<TestDescription, TestDescription, Context> {
     }
     for (int i = 0; i < length; ++i) {
       if (a[i] != b[i]) {
-        Expect.fail("Data differs at byte ${i+1}.");
+        Expect.fail("Data differs at byte ${i + 1}.");
       }
     }
     Expect.equals(a.length, b.length);

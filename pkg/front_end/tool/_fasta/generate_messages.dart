@@ -179,18 +179,21 @@ StringBuffer buffer;""");
         parameters.add("String name");
         conversions.add("if (name.isEmpty) throw 'No name provided';");
         arguments.add("'name': name");
+        conversions.add("name = demangleMixinApplicationName(name);");
         break;
 
       case "name2":
         parameters.add("String name2");
         conversions.add("if (name2.isEmpty) throw 'No name provided';");
         arguments.add("'name2': name2");
+        conversions.add("name2 = demangleMixinApplicationName(name2);");
         break;
 
       case "name3":
         parameters.add("String name3");
         conversions.add("if (name3.isEmpty) throw 'No name provided';");
         arguments.add("'name3': name3");
+        conversions.add("name3 = demangleMixinApplicationName(name3);");
         break;
 
       case "lexeme":
@@ -224,25 +227,16 @@ StringBuffer buffer;""");
         break;
 
       case "type":
-        parameters.add("DartType _type");
-        ensureNameSystem();
-        conversions.add(r"""
-buffer = new StringBuffer();
-new Printer(buffer, syntheticNames: nameSystem).writeNode(_type);
-String type = '$buffer';
-""");
-        arguments.add("'type': _type");
-        break;
-
       case "type2":
-        parameters.add("DartType _type2");
+      case "type3":
+        parameters.add("DartType _${name}");
         ensureNameSystem();
-        conversions.add(r"""
+        conversions.add("""
 buffer = new StringBuffer();
-new Printer(buffer, syntheticNames: nameSystem).writeNode(_type2);
-String type2 = '$buffer';
+new Printer(buffer, syntheticNames: nameSystem).writeNode(_${name});
+String ${name} = '\$buffer';
 """);
-        arguments.add("'type2': _type2");
+        arguments.add("'${name}': _${name}");
         break;
 
       case "uri":

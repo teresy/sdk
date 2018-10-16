@@ -42,6 +42,11 @@ abstract class ClassHierarchy {
   /// True if the component contains another class that is a subtype of given one.
   bool hasProperSubtypes(Class class_);
 
+  // Returns the instantition of each generic supertype implemented by this
+  // class (e.g. getClassAsInstanceOf applied to all superclasses and
+  // interfaces).
+  List<Supertype> genericSupertypesOf(Class class_);
+
   /// Returns the least upper bound of two interface types, as defined by Dart
   /// 1.0.
   ///
@@ -660,26 +665,8 @@ class ClosedWorldClassHierarchy implements ClassHierarchy {
       var superclass = supertype.classNode;
       var superGetters = getInterfaceMembers(superclass);
       var superSetters = getInterfaceMembers(superclass, setters: true);
-      _reportOverrides(info.implementedGettersAndCalls, superGetters, callback);
-      _reportOverrides(info.declaredGettersAndCalls, superGetters, callback,
-          onlyAbstract: true);
-      _reportOverrides(info.implementedSetters, superSetters, callback,
-          isSetter: true);
+      _reportOverrides(info.declaredGettersAndCalls, superGetters, callback);
       _reportOverrides(info.declaredSetters, superSetters, callback,
-          isSetter: true, onlyAbstract: true);
-    }
-    if (!class_.isAbstract) {
-      // If a non-abstract class declares an abstract method M whose
-      // implementation M' is inherited from the superclass, then the inherited
-      // method M' overrides the declared method M.
-      // This flies in the face of conventional override logic, but is necessary
-      // because an instance of the class will contain the method M' which can
-      // be invoked through the interface of M.
-      // Note that [_reportOverrides] does not report self-overrides, so in
-      // most cases these calls will just scan both lists and report nothing.
-      _reportOverrides(info.implementedGettersAndCalls,
-          info.declaredGettersAndCalls, callback);
-      _reportOverrides(info.implementedSetters, info.declaredSetters, callback,
           isSetter: true);
     }
   }
@@ -688,15 +675,10 @@ class ClosedWorldClassHierarchy implements ClassHierarchy {
       List<Member> declaredList,
       List<Member> inheritedList,
       callback(Member declaredMember, Member interfaceMember, bool isSetter),
-      {bool isSetter: false,
-      bool onlyAbstract: false}) {
+      {bool isSetter: false}) {
     int i = 0, j = 0;
     while (i < declaredList.length && j < inheritedList.length) {
       Member declared = declaredList[i];
-      if (onlyAbstract && !declared.isAbstract) {
-        ++i;
-        continue;
-      }
       Member inherited = inheritedList[j];
       int comparison = ClassHierarchy.compareMembers(declared, inherited);
       if (comparison < 0) {
@@ -720,6 +702,15 @@ class ClosedWorldClassHierarchy implements ClassHierarchy {
     return info.directExtenders.isNotEmpty ||
         info.directImplementers.isNotEmpty ||
         info.directMixers.isNotEmpty;
+  }
+
+  @override
+  List<Supertype> genericSupertypesOf(Class class_) {
+    final supertypes = _infoFor[class_].genericSuperTypes;
+    if (supertypes == null) return const <Supertype>[];
+    // Multiple supertypes can arise from ambiguous supertypes. The first
+    // supertype is the real one; the others are purely informational.
+    return supertypes.values.map((v) => v.first).toList();
   }
 
   @override
@@ -1362,7 +1353,7 @@ class _ClassInfo {
   /// Maps generic supertype classes to the instantiation implemented by this
   /// class.
   ///
-  /// E.g. `List` maps to `List<String>` for a class that directly of indirectly
+  /// E.g. `List` maps to `List<String>` for a class that directly or indirectly
   /// implements `List<String>`.
   Map<Class, List<Supertype>> genericSuperTypes;
 

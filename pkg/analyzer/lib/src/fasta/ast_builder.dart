@@ -25,7 +25,7 @@ import 'package:front_end/src/fasta/parser.dart'
 import 'package:front_end/src/fasta/scanner.dart' hide StringToken;
 import 'package:front_end/src/scanner/errors.dart' show translateErrorToken;
 import 'package:front_end/src/scanner/token.dart'
-    show BeginToken, SyntheticBeginToken, SyntheticStringToken, SyntheticToken;
+    show SyntheticStringToken, SyntheticToken;
 
 import 'package:front_end/src/fasta/problems.dart' show unhandled;
 import 'package:front_end/src/fasta/messages.dart'
@@ -152,9 +152,18 @@ class AstBuilder extends StackListener {
 
   void _handleInstanceCreation(Token token) {
     MethodInvocation arguments = pop();
-    ConstructorName constructorName = pop();
+    ConstructorName constructorName;
+    TypeArgumentList typeArguments;
+    var object = pop();
+    if (object is _ConstructorNameWithInvalidTypeArgs) {
+      constructorName = object.name;
+      typeArguments = object.invalidTypeArgs;
+    } else {
+      constructorName = object;
+    }
     push(ast.instanceCreationExpression(
-        token, constructorName, arguments.argumentList));
+        token, constructorName, arguments.argumentList,
+        typeArguments: typeArguments));
   }
 
   @override
@@ -1771,7 +1780,7 @@ class AstBuilder extends StackListener {
 
   @override
   void handleClassExtends(Token extendsKeyword) {
-    assert(optionalOrNull('extends', extendsKeyword));
+    assert(extendsKeyword == null || extendsKeyword.isKeywordOrIdentifier);
     debugEvent("ClassExtends");
 
     TypeName supertype = pop();
@@ -1892,7 +1901,7 @@ class AstBuilder extends StackListener {
 
   @override
   void handleMixinOn(Token onKeyword, int typeCount) {
-    assert(optionalOrNull('on', onKeyword));
+    assert(onKeyword == null || onKeyword.isKeywordOrIdentifier);
     debugEvent("MixinOn");
 
     if (onKeyword != null) {
@@ -2162,6 +2171,8 @@ class AstBuilder extends StackListener {
     List<Annotation> metadata = pop();
     Comment comment = _findComment(metadata, beginToken);
 
+    assert(parameters != null);
+
     if (typeParameters != null) {
       // TODO(danrubel): Update OutlineBuilder to report this error message.
       handleRecoverableError(messageConstructorWithTypeParameters,
@@ -2366,6 +2377,8 @@ class AstBuilder extends StackListener {
     List<Annotation> metadata = pop();
     Comment comment = _findComment(metadata, beginToken);
 
+    assert(parameters != null || optional('get', getOrSet));
+
     ConstructorName redirectedConstructor;
     FunctionBody body;
     if (bodyObject is FunctionBody) {
@@ -2377,30 +2390,6 @@ class AstBuilder extends StackListener {
     } else {
       unhandled("${bodyObject.runtimeType}", "bodyObject",
           beginToken.charOffset, uri);
-    }
-
-    if (parameters == null && (getOrSet == null || optional('set', getOrSet))) {
-      Token token = typeParameters?.endToken;
-      if (token == null) {
-        if (name is AstNode) {
-          token = name.endToken;
-        } else if (name is _OperatorName) {
-          token = name.name.endToken;
-        } else {
-          throw new UnimplementedError();
-        }
-      }
-      Token next = token.next;
-      int offset = next.charOffset;
-      BeginToken leftParen =
-          new SyntheticBeginToken(TokenType.OPEN_PAREN, offset);
-      token.setNext(leftParen);
-      Token rightParen =
-          leftParen.setNext(new SyntheticToken(TokenType.CLOSE_PAREN, offset));
-      leftParen.endGroup = rightParen;
-      rightParen.setNext(next);
-      parameters = ast.formalParameterList(
-          leftParen, <FormalParameter>[], null, null, rightParen);
     }
 
     ClassOrMixinDeclarationImpl declaration =
@@ -2583,6 +2572,17 @@ class AstBuilder extends StackListener {
 
     List<TypeAnnotation> arguments = popTypedList(count);
     push(ast.typeArgumentList(leftBracket, arguments, rightBracket));
+  }
+
+  @override
+  void handleInvalidTypeArguments(Token token) {
+    TypeArgumentList invalidTypeArgs = pop();
+    var node = pop();
+    if (node is ConstructorName) {
+      push(new _ConstructorNameWithInvalidTypeArgs(node, invalidTypeArgs));
+    } else {
+      throw new UnimplementedError();
+    }
   }
 
   @override
@@ -2948,4 +2948,11 @@ class _Modifiers {
         ? finalConstOrVarKeyword
         : null;
   }
+}
+
+class _ConstructorNameWithInvalidTypeArgs {
+  final ConstructorName name;
+  final TypeArgumentList invalidTypeArgs;
+
+  _ConstructorNameWithInvalidTypeArgs(this.name, this.invalidTypeArgs);
 }

@@ -12,7 +12,6 @@
 #include "vm/class_finalizer.h"
 #include "vm/code_observers.h"
 #include "vm/compiler/jit/compiler.h"
-#include "vm/compiler_stats.h"
 #include "vm/dart_api_message.h"
 #include "vm/dart_api_state.h"
 #include "vm/dart_entry.h"
@@ -49,7 +48,6 @@
 #include "vm/thread_registry.h"
 #include "vm/timeline.h"
 #include "vm/timeline_analysis.h"
-#include "vm/timer.h"
 #include "vm/visitor.h"
 
 namespace dart {
@@ -87,6 +85,7 @@ static void DeterministicModeHandler(bool value) {
     FLAG_marker_tasks = 0;                // Timing dependent.
     FLAG_background_compilation = false;  // Timing dependent.
     FLAG_collect_code = false;            // Timing dependent.
+    FLAG_concurrent_sweep = false;        // Timing dependent.
     FLAG_random_seed = 0x44617274;  // "Dart"
 #if !defined(PRODUCT) && !defined(DART_PRECOMPILED_RUNTIME)
     FLAG_load_deferred_eagerly = true;
@@ -922,6 +921,10 @@ Isolate::Isolate(const Dart_IsolateFlags& api_flags)
           NOT_IN_PRODUCT("Isolate::constant_canonicalization_mutex_"))),
       megamorphic_lookup_mutex_(
           new Mutex(NOT_IN_PRODUCT("Isolate::megamorphic_lookup_mutex_"))),
+      kernel_data_lib_cache_mutex_(
+          new Mutex(NOT_IN_PRODUCT("Isolate::kernel_data_lib_cache_mutex_"))),
+      kernel_data_class_cache_mutex_(
+          new Mutex(NOT_IN_PRODUCT("Isolate::kernel_data_class_cache_mutex_"))),
       message_handler_(NULL),
       spawn_state_(NULL),
       defer_finalization_count_(0),
@@ -1006,6 +1009,10 @@ Isolate::~Isolate() {
   constant_canonicalization_mutex_ = NULL;
   delete megamorphic_lookup_mutex_;
   megamorphic_lookup_mutex_ = NULL;
+  delete kernel_data_lib_cache_mutex_;
+  kernel_data_lib_cache_mutex_ = NULL;
+  delete kernel_data_class_cache_mutex_;
+  kernel_data_class_cache_mutex_ = NULL;
   delete pending_deopts_;
   pending_deopts_ = NULL;
   delete message_handler_;
@@ -1239,7 +1246,6 @@ void Isolate::DoneLoading() {
       lib.SetLoaded();
     }
   }
-  TokenStream::CloseSharedTokenList(this);
 }
 
 #if !defined(PRODUCT) && !defined(DART_PRECOMPILED_RUNTIME)
@@ -1869,19 +1875,6 @@ void Isolate::Shutdown() {
 
   // Don't allow anymore dart code to execution on this isolate.
   thread->ClearStackLimit();
-
-  // First, perform higher-level cleanup that may need to allocate.
-  {
-    // Ensure we have a zone and handle scope so that we can call VM functions.
-    StackZone stack_zone(thread);
-    HandleScope handle_scope(thread);
-
-    // Write compiler stats data if enabled.
-    if (FLAG_support_compiler_stats && FLAG_compiler_stats &&
-        !Isolate::IsVMInternalIsolate(this)) {
-      OS::PrintErr("%s", aggregate_compiler_stats()->PrintToZone());
-    }
-  }
 
   // Remove this isolate from the list *before* we start tearing it down, to
   // avoid exposing it in a state of decay.

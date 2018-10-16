@@ -40,8 +40,8 @@ void problemHandler(FormattedMessage message, Severity severity,
 test({bool sdkFromSource}) async {
   final CompilerOptions optionBuilder = new CompilerOptions()
     ..packagesFileUri = Uri.base.resolve(".packages")
-    ..target = new VmTarget(new TargetFlags(strongMode: false))
-    ..strongMode = false
+    ..target = new VmTarget(new TargetFlags(legacyMode: true))
+    ..legacyMode = true
     ..onProblem = problemHandler;
 
   if (sdkFromSource) {
@@ -49,7 +49,8 @@ test({bool sdkFromSource}) async {
         Uri.base.resolve("sdk/lib/libraries.json");
   } else {
     optionBuilder.sdkSummary =
-        computePlatformBinariesLocation().resolve("vm_platform.dill");
+        computePlatformBinariesLocation(forceBuildDir: true)
+            .resolve("vm_platform.dill");
   }
 
   final Uri helloDart = Uri.base.resolve("pkg/front_end/testcases/hello.dart");

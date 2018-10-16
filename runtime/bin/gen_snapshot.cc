@@ -22,6 +22,7 @@
 #include "bin/log.h"
 #include "bin/options.h"
 #include "bin/platform.h"
+#include "bin/snapshot_utils.h"
 #include "bin/thread.h"
 #include "bin/utils.h"
 #include "bin/vmservice_impl.h"
@@ -112,7 +113,9 @@ static const char* kSnapshotKindNames[] = {
   V(isolate_snapshot_instructions, isolate_snapshot_instructions_filename)     \
   V(shared_data, shared_data_filename)                                         \
   V(shared_instructions, shared_instructions_filename)                         \
+  V(shared_blobs, shared_blobs_filename)                                       \
   V(reused_instructions, reused_instructions_filename)                         \
+  V(blobs_container_filename, blobs_container_filename)                        \
   V(assembly, assembly_filename)                                               \
   V(dependencies, dependencies_filename)                                       \
   V(load_compilation_trace, load_compilation_trace_filename)                   \
@@ -315,16 +318,35 @@ static int ParseArguments(int argc,
       break;
     }
     case kAppAOTBlobs: {
-      if ((vm_snapshot_data_filename == NULL) ||
-          (vm_snapshot_instructions_filename == NULL) ||
-          (isolate_snapshot_data_filename == NULL) ||
-          (isolate_snapshot_instructions_filename == NULL) ||
-          (*script_name == NULL)) {
+      if (*script_name == NULL) {
+        Log::PrintErr(
+            "Building an AOT snapshot as blobs requires specifying "
+            " a kernel file.\n\n");
+        return -1;
+      }
+      if ((blobs_container_filename == NULL) &&
+          ((vm_snapshot_data_filename == NULL) ||
+           (vm_snapshot_instructions_filename == NULL) ||
+           (isolate_snapshot_data_filename == NULL) ||
+           (isolate_snapshot_instructions_filename == NULL))) {
         Log::PrintErr(
             "Building an AOT snapshot as blobs requires specifying output "
+            "file for --blobs_container_filename or "
             "files for --vm_snapshot_data, --vm_snapshot_instructions, "
-            "--isolate_snapshot_data and --isolate_snapshot_instructions and a "
-            "kernel file.\n\n");
+            "--isolate_snapshot_data and --isolate_snapshot_instructions.\n\n");
+        return -1;
+      }
+      if ((blobs_container_filename != NULL) &&
+          ((vm_snapshot_data_filename != NULL) ||
+           (vm_snapshot_instructions_filename != NULL) ||
+           (isolate_snapshot_data_filename != NULL) ||
+           (isolate_snapshot_instructions_filename != NULL))) {
+        Log::PrintErr(
+            "Building an AOT snapshot as blobs requires specifying output "
+            "file for --blobs_container_filename or "
+            "files for --vm_snapshot_data, --vm_snapshot_instructions, "
+            "--isolate_snapshot_data and --isolate_snapshot_instructions"
+            " not both.\n\n");
         return -1;
       }
       break;
@@ -440,11 +462,20 @@ class DependenciesFileWriter : public ValueObject {
         // WriteDependenciesWithTarget(isolate_snapshot_instructions_filename);
         break;
       case kCoreJIT:
-      case kAppAOTBlobs:
         WriteDependenciesWithTarget(vm_snapshot_data_filename);
         // WriteDependenciesWithTarget(vm_snapshot_instructions_filename);
         // WriteDependenciesWithTarget(isolate_snapshot_data_filename);
         // WriteDependenciesWithTarget(isolate_snapshot_instructions_filename);
+        break;
+      case kAppAOTBlobs:
+        if (blobs_container_filename != NULL) {
+          WriteDependenciesWithTarget(blobs_container_filename);
+        } else {
+          WriteDependenciesWithTarget(vm_snapshot_data_filename);
+          // WriteDependenciesWithTarget(vm_snapshot_instructions_filename);
+          // WriteDependenciesWithTarget(isolate_snapshot_data_filename);
+          // WriteDependenciesWithTarget(isolate_snapshot_instructions_filename);
+        }
         break;
       default:
         UNREACHABLE();
@@ -516,6 +547,15 @@ static void CreateAndWriteDependenciesFile() {
     free(dependencies->At(i));
   }
   dependencies->Clear();
+}
+
+static void LoadBytecode() {
+  if ((Dart_IsVMFlagSet("enable_interpreter") ||
+       Dart_IsVMFlagSet("use_bytecode_compiler")) &&
+      ((snapshot_kind == kCoreJIT) || (snapshot_kind == kAppJIT))) {
+    Dart_Handle result = Dart_ReadAllBytecode();
+    CHECK_RESULT(result);
+  }
 }
 
 static void LoadCompilationTrace() {
@@ -692,13 +732,29 @@ static void CreateAndWritePrecompiledSnapshot() {
     const uint8_t* shared_instructions = NULL;
     std::unique_ptr<MappedMemory> mapped_shared_data;
     std::unique_ptr<MappedMemory> mapped_shared_instructions;
-    if (shared_data_filename != NULL) {
-      mapped_shared_data =
-          MapFile(shared_data_filename, File::kReadOnly, &shared_data);
-    }
-    if (shared_instructions_filename != NULL) {
-      mapped_shared_instructions = MapFile(
-          shared_instructions_filename, File::kReadOnly, &shared_instructions);
+    if (shared_blobs_filename != NULL) {
+      AppSnapshot* shared_blobs = NULL;
+      Log::PrintErr("Shared blobs in gen_snapshot are for testing only.\n");
+      shared_blobs = Snapshot::TryReadAppSnapshot(shared_blobs_filename);
+      if (shared_blobs == NULL) {
+        Log::PrintErr("Failed to load: %s\n", shared_blobs_filename);
+        Dart_ExitScope();
+        Dart_ShutdownIsolate();
+        exit(kErrorExitCode);
+      }
+      const uint8_t* ignored;
+      shared_blobs->SetBuffers(&ignored, &ignored, &shared_data,
+                               &shared_instructions);
+    } else {
+      if (shared_data_filename != NULL) {
+        mapped_shared_data =
+            MapFile(shared_data_filename, File::kReadOnly, &shared_data);
+      }
+      if (shared_instructions_filename != NULL) {
+        mapped_shared_instructions =
+            MapFile(shared_instructions_filename, File::kReadOnly,
+                    &shared_instructions);
+      }
     }
 
     uint8_t* vm_snapshot_data_buffer = NULL;
@@ -717,15 +773,24 @@ static void CreateAndWritePrecompiledSnapshot() {
         &isolate_snapshot_instructions_size, shared_data, shared_instructions);
     CHECK_RESULT(result);
 
-    WriteFile(vm_snapshot_data_filename, vm_snapshot_data_buffer,
-              vm_snapshot_data_size);
-    WriteFile(vm_snapshot_instructions_filename,
-              vm_snapshot_instructions_buffer, vm_snapshot_instructions_size);
-    WriteFile(isolate_snapshot_data_filename, isolate_snapshot_data_buffer,
-              isolate_snapshot_data_size);
-    WriteFile(isolate_snapshot_instructions_filename,
-              isolate_snapshot_instructions_buffer,
-              isolate_snapshot_instructions_size);
+    if (blobs_container_filename != NULL) {
+      Snapshot::WriteAppSnapshot(
+          blobs_container_filename, vm_snapshot_data_buffer,
+          vm_snapshot_data_size, vm_snapshot_instructions_buffer,
+          vm_snapshot_instructions_size, isolate_snapshot_data_buffer,
+          isolate_snapshot_data_size, isolate_snapshot_instructions_buffer,
+          isolate_snapshot_instructions_size);
+    } else {
+      WriteFile(vm_snapshot_data_filename, vm_snapshot_data_buffer,
+                vm_snapshot_data_size);
+      WriteFile(vm_snapshot_instructions_filename,
+                vm_snapshot_instructions_buffer, vm_snapshot_instructions_size);
+      WriteFile(isolate_snapshot_data_filename, isolate_snapshot_data_buffer,
+                isolate_snapshot_data_size);
+      WriteFile(isolate_snapshot_instructions_filename,
+                isolate_snapshot_instructions_buffer,
+                isolate_snapshot_instructions_size);
+    }
   }
 
   // Serialize obfuscation map if requested.
@@ -737,53 +802,6 @@ static void CreateAndWritePrecompiledSnapshot() {
     CHECK_RESULT(result);
     WriteFile(obfuscation_map_filename, buffer, size);
   }
-}
-
-static Dart_Isolate CreateServiceIsolate(const char* script_uri,
-                                         const char* main,
-                                         const char* package_root,
-                                         const char* package_config,
-                                         Dart_IsolateFlags* flags,
-                                         void* data,
-                                         char** error) {
-  IsolateData* isolate_data =
-      new IsolateData(script_uri, package_root, package_config, NULL);
-  Dart_Isolate isolate = NULL;
-  isolate = Dart_CreateIsolate(script_uri, main, isolate_snapshot_data,
-                               isolate_snapshot_instructions, NULL, NULL, flags,
-                               isolate_data, error);
-
-  if (isolate == NULL) {
-    Log::PrintErr("Error: Could not create service isolate\n");
-    return NULL;
-  }
-
-  Dart_EnterScope();
-  if (!Dart_IsServiceIsolate(isolate)) {
-    Log::PrintErr("Error: We only expect to create the service isolate\n");
-    return NULL;
-  }
-  Dart_Handle result = Dart_SetLibraryTagHandler(Loader::LibraryTagHandler);
-  if (Dart_IsError(result)) {
-    Log::PrintErr("Error: Could not set tag handler for service isolate\n");
-    return NULL;
-  }
-  // Setup the native resolver.
-  Builtin::LoadAndCheckLibrary(Builtin::kBuiltinLibrary);
-  Builtin::LoadAndCheckLibrary(Builtin::kIOLibrary);
-  Builtin::LoadAndCheckLibrary(Builtin::kCLILibrary);
-
-  ASSERT(Dart_IsServiceIsolate(isolate));
-  // Load embedder specific bits and return. Will not start http server.
-  if (!VmService::Setup("127.0.0.1", -1, false /* running_precompiled */,
-                        false /* server dev mode */, false /* trace_loading */,
-                        true /* deterministic */)) {
-    *error = strdup(VmService::GetErrorMessage());
-    return NULL;
-  }
-  Dart_ExitScope();
-  Dart_ExitIsolate();
-  return isolate;
 }
 
 static Dart_QualifiedFunctionName no_entry_points[] = {
@@ -869,10 +887,12 @@ static int GenerateSnapshotFromKernel(const uint8_t* kernel_buffer,
       CreateAndWriteCoreSnapshot();
       break;
     case kCoreJIT:
+      LoadBytecode();
       LoadCompilationTrace();
       CreateAndWriteCoreJITSnapshot();
       break;
     case kAppJIT:
+      LoadBytecode();
       LoadCompilationTrace();
       CreateAndWriteAppJITSnapshot();
       break;
@@ -980,12 +1000,7 @@ int main(int argc, char** argv) {
   Dart_InitializeParams init_params;
   memset(&init_params, 0, sizeof(init_params));
   init_params.version = DART_INITIALIZE_PARAMS_CURRENT_VERSION;
-  if (app_script_name != NULL && kernel_buffer == NULL) {
-    // We need the service isolate to load script files.
-    // When generating snapshots from a kernel program, we do not need to load
-    // any script files.
-    init_params.create = CreateServiceIsolate;
-  }
+  ASSERT((app_script_name != NULL) || (kernel_buffer == NULL));
   init_params.file_open = DartUtils::OpenFile;
   init_params.file_read = DartUtils::ReadFile;
   init_params.file_write = DartUtils::WriteFile;

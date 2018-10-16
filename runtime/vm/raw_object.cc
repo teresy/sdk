@@ -381,8 +381,6 @@ REGULAR_VISITOR(ClosureData)
 REGULAR_VISITOR(SignatureData)
 REGULAR_VISITOR(RedirectionData)
 REGULAR_VISITOR(Field)
-REGULAR_VISITOR(LiteralToken)
-REGULAR_VISITOR(TokenStream)
 REGULAR_VISITOR(Script)
 REGULAR_VISITOR(Library)
 REGULAR_VISITOR(LibraryPrefix)
@@ -488,6 +486,9 @@ intptr_t RawFunction::VisitFunctionPointers(RawFunction* raw_obj,
 #else
   visitor->VisitPointers(raw_obj->from(), raw_obj->to_no_code());
 
+  visitor->VisitPointer(
+      reinterpret_cast<RawObject**>(&raw_obj->ptr()->bytecode_));
+
   if (ShouldVisitCode(raw_obj->ptr()->code_)) {
     visitor->VisitPointer(
         reinterpret_cast<RawObject**>(&raw_obj->ptr()->code_));
@@ -550,7 +551,8 @@ intptr_t RawObjectPool::VisitObjectPoolPointers(RawObjectPool* raw_obj,
   for (intptr_t i = 0; i < length; ++i) {
     ObjectPool::EntryType entry_type =
         ObjectPool::TypeBits::decode(entry_bits[i]);
-    if (entry_type == ObjectPool::kTaggedObject) {
+    if ((entry_type == ObjectPool::kTaggedObject) ||
+        (entry_type == ObjectPool::kNativeEntryData)) {
       visitor->VisitPointer(&entries[i].raw_obj_);
     }
   }

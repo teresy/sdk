@@ -4,7 +4,6 @@
 
 #include "vm/runtime_entry.h"
 
-#include "vm/ast.h"
 #include "vm/code_patcher.h"
 #include "vm/compiler/assembler/assembler.h"
 #include "vm/compiler/frontend/bytecode_reader.h"
@@ -165,13 +164,36 @@ DEFINE_RUNTIME_ENTRY(RangeError, 2) {
     args.SetAt(2, String::Handle(String::New("is not an integer")));
     Exceptions::ThrowByType(Exceptions::kArgumentValue, args);
   }
-  // Throw: new RangeError.range(index, 0, length, "length");
+  // Throw: new RangeError.range(index, 0, length - 1, "length");
   const Array& args = Array::Handle(Array::New(4));
   args.SetAt(0, index);
   args.SetAt(1, Integer::Handle(Integer::New(0)));
-  args.SetAt(2, length);
+  args.SetAt(2, Integer::Handle(Integer::Cast(length).ArithmeticOp(
+                    Token::kSUB, Integer::Handle(Integer::New(1)))));
   args.SetAt(3, Symbols::Length());
   Exceptions::ThrowByType(Exceptions::kRange, args);
+}
+
+static void NullErrorHelper(Zone* zone, const String& selector) {
+  InvocationMirror::Kind kind = InvocationMirror::kMethod;
+  if (Field::IsGetterName(selector)) {
+    kind = InvocationMirror::kGetter;
+  } else if (Field::IsSetterName(selector)) {
+    kind = InvocationMirror::kSetter;
+  }
+
+  const Smi& invocation_type = Smi::Handle(
+      zone,
+      Smi::New(InvocationMirror::EncodeType(InvocationMirror::kDynamic, kind)));
+
+  const Array& args = Array::Handle(zone, Array::New(6));
+  args.SetAt(0, /* instance */ Object::null_object());
+  args.SetAt(1, selector);
+  args.SetAt(2, invocation_type);
+  args.SetAt(3, /* func_type_args */ Object::null_object());
+  args.SetAt(4, /* func_args */ Object::null_object());
+  args.SetAt(5, /* func_arg_names */ Object::null_object());
+  Exceptions::ThrowByType(Exceptions::kNoSuchMethod, args);
 }
 
 DEFINE_RUNTIME_ENTRY(NullError, 0) {
@@ -199,25 +221,17 @@ DEFINE_RUNTIME_ENTRY(NullError, 0) {
   const String& member_name =
       String::CheckedHandle(zone, pool.ObjectAt(name_index));
 
-  InvocationMirror::Kind kind = InvocationMirror::kMethod;
-  if (Field::IsGetterName(member_name)) {
-    kind = InvocationMirror::kGetter;
-  } else if (Field::IsSetterName(member_name)) {
-    kind = InvocationMirror::kSetter;
-  }
+  NullErrorHelper(zone, member_name);
+}
 
-  const Smi& invocation_type = Smi::Handle(
-      zone,
-      Smi::New(InvocationMirror::EncodeType(InvocationMirror::kDynamic, kind)));
+DEFINE_RUNTIME_ENTRY(NullErrorWithSelector, 1) {
+  const String& selector = String::CheckedHandle(arguments.ArgAt(0));
+  NullErrorHelper(zone, selector);
+}
 
-  const Array& args = Array::Handle(zone, Array::New(6));
-  args.SetAt(0, /* instance */ Object::null_object());
-  args.SetAt(1, member_name);
-  args.SetAt(2, invocation_type);
-  args.SetAt(3, /* func_type_args */ Object::null_object());
-  args.SetAt(4, /* func_args */ Object::null_object());
-  args.SetAt(5, /* func_arg_names */ Object::null_object());
-  Exceptions::ThrowByType(Exceptions::kNoSuchMethod, args);
+DEFINE_RUNTIME_ENTRY(ArgumentError, 1) {
+  const Instance& value = Instance::CheckedHandle(arguments.ArgAt(0));
+  Exceptions::ThrowArgumentError(value);
 }
 
 DEFINE_RUNTIME_ENTRY(ArgumentErrorUnboxedInt64, 0) {
@@ -1127,7 +1141,6 @@ RawFunction* InlineCacheMissHelper(const Instance& receiver,
                                    const String& target_name) {
   const Class& receiver_class = Class::Handle(receiver.clazz());
 
-#if !defined(DART_PRECOMPILED_RUNTIME)
   // Handle noSuchMethod for dyn:methodName by getting a noSuchMethod dispatcher
   // (or a call-through getter for methodName).
   if (Function::IsDynamicInvocationForwaderName(target_name)) {
@@ -1135,7 +1148,6 @@ RawFunction* InlineCacheMissHelper(const Instance& receiver,
         Function::DemangleDynamicInvocationForwarderName(target_name));
     return InlineCacheMissHelper(receiver, args_descriptor, demangled);
   }
-#endif
 
   Function& result = Function::Handle();
   if (!ResolveCallThroughGetter(receiver, receiver_class, target_name,
@@ -1745,6 +1757,10 @@ DEFINE_RUNTIME_ENTRY(InvokeNoSuchMethodDispatcher, 4) {
     target_name = MegamorphicCache::Cast(ic_data_or_cache).target_name();
   }
 
+  if (Function::IsDynamicInvocationForwaderName(target_name)) {
+    target_name = Function::DemangleDynamicInvocationForwarderName(target_name);
+  }
+
   Class& cls = Class::Handle(zone, receiver.clazz());
   Function& function = Function::Handle(zone);
 
@@ -2142,7 +2158,8 @@ DEFINE_RUNTIME_ENTRY(OptimizeInvokedFunction, 1) {
 
   // If running with interpreter, do the unoptimized compilation first.
   const bool unoptimized_compilation =
-      FLAG_enable_interpreter && !function.WasCompiled();
+      FLAG_enable_interpreter &&
+      (function.unoptimized_code() == Object::null());
 
   ASSERT(unoptimized_compilation || function.HasCode());
 

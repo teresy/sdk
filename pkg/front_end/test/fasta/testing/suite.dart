@@ -68,9 +68,6 @@ import 'package:front_end/src/fasta/ticker.dart' show Ticker;
 
 import 'package:front_end/src/fasta/uri_translator.dart' show UriTranslator;
 
-import 'package:front_end/src/fasta/uri_translator_impl.dart'
-    show UriTranslatorImpl;
-
 export 'package:testing/testing.dart' show Chain, runMe;
 
 const String STRONG_MODE = " strong mode ";
@@ -95,7 +92,7 @@ String generateExpectationName(bool strongMode) {
 }
 
 class FastaContext extends ChainContext {
-  final UriTranslatorImpl uriTranslator;
+  final UriTranslator uriTranslator;
   final List<Step> steps;
   final Uri vm;
   final bool strongMode;
@@ -212,7 +209,7 @@ class FastaContext extends ChainContext {
         vm,
         strongMode,
         platformBinaries == null
-            ? computePlatformBinariesLocation()
+            ? computePlatformBinariesLocation(forceBuildDir: true)
             : Uri.base.resolve(platformBinaries),
         onlyCrashes,
         ignoreExpectations,
@@ -242,7 +239,9 @@ class Run extends Step<Uri, int, FastaContext> {
     try {
       var args = <String>[];
       if (context.strongMode) {
+        // TODO(ahe): This argument is probably ignored by the VM.
         args.add('--strong');
+        // TODO(ahe): This argument is probably ignored by the VM.
         args.add('--reify-generic-functions');
       }
       args.add(generated.path);
@@ -276,6 +275,7 @@ class Outline extends Step<TestDescription, Component, FastaContext> {
     StringBuffer errors = new StringBuffer();
     ProcessedOptions options = new ProcessedOptions(
         options: new CompilerOptions()
+          ..legacyMode = !strongMode
           ..onProblem = (FormattedMessage problem, Severity severity,
               List<FormattedMessage> context) {
             if (errors.isNotEmpty) {
@@ -295,11 +295,11 @@ class Outline extends Step<TestDescription, Component, FastaContext> {
       Component platform = await context.loadPlatform();
       Ticker ticker = new Ticker();
       DillTarget dillTarget = new DillTarget(ticker, context.uriTranslator,
-          new TestVmTarget(new TargetFlags(strongMode: strongMode)));
+          new TestVmTarget(new TargetFlags(legacyMode: !strongMode)));
       dillTarget.loader.appendLibraries(platform);
       // We create a new URI translator to avoid reading platform libraries from
       // file system.
-      UriTranslatorImpl uriTranslator = new UriTranslatorImpl(
+      UriTranslator uriTranslator = new UriTranslator(
           const TargetLibrariesSpecification('vm'),
           context.uriTranslator.packages);
       KernelTarget sourceTarget = new KernelTarget(
@@ -307,7 +307,7 @@ class Outline extends Step<TestDescription, Component, FastaContext> {
 
       Component p;
       try {
-        sourceTarget.read(description.uri);
+        sourceTarget.setEntryPoints(<Uri>[description.uri]);
         await dillTarget.buildOutlines();
         ValidatingInstrumentation instrumentation;
         if (strongMode) {

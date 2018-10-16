@@ -10,6 +10,13 @@
 # missing a section you need, please reach out to sigmund@ to see the best way
 # to add them.
 
+[ $builder_tag == asan ]
+io/file_test: Fail # Issue 34724
+io/http_server_response_test: Fail # Issue 34724
+io/process_sync_test: Fail # Issue 34724 (child process)
+io/signals_test: Fail # Issue 34724
+io/test_extension_fail_test: Fail # Issue 32187
+
 [ $compiler == app_jitk ]
 io/file_error_test: RuntimeError
 io/file_test: RuntimeError
@@ -38,14 +45,25 @@ out_of_memory_test: RuntimeError
 deferred_transitive_import_error_test: CompileTimeError
 package/package1_test: CompileTimeError
 package/package_test: CompileTimeError
+package/scenarios/invalid/invalid_utf8_test: CompileTimeError
+package/scenarios/invalid/non_existent_packages_file_test: CompileTimeError
 package/scenarios/invalid/same_package_twice_test: CompileTimeError
 
-[ $arch != simarm && $arch != simarm64 && $arch != simdbc64 && $compiler != dartkb && $fasta ]
-package/scenarios/invalid/invalid_utf8_test: CompileTimeError # Issue 32085
-package/scenarios/invalid/non_existent_packages_file_test: CompileTimeError # Issue 32085
+[ $arch == ia32 && $builder_tag == optimization_counter_threshold ]
+io/file_lock_test: SkipSlow # Timeout
+
+[ $arch == ia32 && $compiler == dartk && $strong ]
+io/dart_std_io_pipe_test: Timeout, Pass # Issue 34723
 
 [ $arch == simarm64 && $strong && ($compiler == dartk || $compiler == dartkb) ]
 io/http_bind_test: Pass, Slow
+
+[ $arch == x64 && $builder_tag == asan && $compiler == dartk ]
+io/file_test: Fail # Memory leak (issue 34724)
+io/http_server_response_test: Fail # Memory leak (issue 34724)
+io/process_sync_test: Pass, RuntimeError # Issue 34734
+io/signals_test: Pass, RuntimeError # Issue 34734
+io/test_extension_fail_test: Fail # Memory leak (issue 34724)
 
 [ $builder_tag == optimization_counter_threshold && ($compiler == dartk || $compiler == dartkb) ]
 map_insert_remove_oom_test: Skip # Heap limit too low.
@@ -55,24 +73,16 @@ dart_developer_disabled_env_test: RuntimeError
 
 # The failures below still need to be investigated and possibly fixed, or marked as skipped.
 [ $compiler == dartkb && $strong ]
-io/dart_std_io_pipe_test: Pass, Crash # Trap bytecode encountered.
-io/file_lock_test: Pass, Crash # Trap bytecode encountered.
-io/http_advanced_test: Pass, RuntimeError # Please triage.
-io/http_client_connect_test: Pass, RuntimeError # Please triage.
-io/http_outgoing_size_test: Pass, RuntimeError # Please triage.
+io/code_collection_test: RuntimeError # Reruns the same script (dill file without AST) without passing --enable-interpreter or --use-bytecode-compiler.
+io/dart_std_io_pipe_test: Pass, Timeout # Please triage
+io/platform_resolved_executable_test/00: RuntimeError # Reruns the same script (dill file without AST) without passing --enable-interpreter or --use-bytecode-compiler.
+io/platform_resolved_executable_test/01: RuntimeError # Reruns the same script (dill file without AST) without passing --enable-interpreter or --use-bytecode-compiler.
+io/platform_resolved_executable_test/02: RuntimeError # Reruns the same script (dill file without AST) without passing --enable-interpreter or --use-bytecode-compiler.
+io/platform_resolved_executable_test/05: RuntimeError # Reruns the same script (dill file without AST) without passing --enable-interpreter or --use-bytecode-compiler.
 io/platform_test: RuntimeError # Platform.script points to dill file.
-io/process_sync_test: Pass, Crash # Bytecode compilation.
 io/test_extension_fail_test: RuntimeError # Platform.script points to dill file.
 io/test_extension_test: RuntimeError # Platform.script points to dill file.
-io/web_socket_compression_test: Pass, RuntimeError # Please triage.
-io/web_socket_ping_test: Pass, RuntimeError # Please triage.
-io/web_socket_protocol_test: Pass, RuntimeError # Please triage.
-io/web_socket_typed_data_test: Pass, RuntimeError # Please triage.
 no_lazy_dispatchers_test: SkipByDesign # KBC interpreter doesn't support --no_lazy_dispatchers
-package/scenarios/packages_file_strange_formatting/empty_lines_test: CompileTimeError # Please triage.
-package/scenarios/packages_file_strange_formatting/mixed_line_ends_test: CompileTimeError # Please triage.
-package/scenarios/packages_option_only/packages_option_only_test: CompileTimeError # Please triage.
-typed_data_isolate_test: Pass, Crash, Timeout # Please triage.
 
 [ $compiler == dartkp && $mode == debug && $runtime == dart_precompiled && $strong ]
 io/compile_all_test: Crash # Issue 32373
@@ -147,6 +157,18 @@ io/socket_port_test: Pass, Crash
 [ $mode == debug && $hot_reload && ($compiler == dartk || $compiler == dartkb) ]
 io/web_socket_ping_test: Crash, Pass
 
+[ $system == macos ]
+io/http_requested_uri_test: Pass, Timeout # Issue 34760
+io/http_response_deadline_test: Pass, Timeout # Issue 34760
+io/https_server_test: Pass, Timeout # Issue 34760
+io/raw_secure_server_closing_test: Pass, Timeout # Issue 34760
+io/secure_server_closing_test: Pass, Timeout # Issue 34760
+io/secure_server_socket_test: Pass, Timeout # Issue 34760
+io/secure_unauthorized_test: Pass, Timeout # Issue 34760
+io/socket_source_address_test: Pass, Timeout # Issue 34760
+io/web_socket_compression_test: Pass, Timeout # Issue 34760
+io/web_socket_test: Pass, Timeout # Issue 34760
+
 [ $runtime == vm && $strong && ($compiler == dartk || $compiler == dartkb) ]
 io/http_client_request_test: Pass, Timeout
 io/http_compression_test: RuntimeError
@@ -163,6 +185,7 @@ io/compile_all_test: Pass, Fail # Possibly related to issue 32373
 map_insert_remove_oom_test: Skip # Heap limit too low.
 
 [ $system == windows && ($compiler == dartk || $compiler == dartkb) ]
+io/dart_std_io_pipe_test: Pass, Slow
 io/secure_builtin_roots_test: Skip # Issues 32137 and 32138.
 io/test_extension_fail_test: RuntimeError, Pass # Issue 32137.
 io/test_extension_test: RuntimeError, Pass # Issue 32137.
@@ -196,9 +219,6 @@ io/process_sync_test: Timeout, Pass
 io/test_extension_fail_test: RuntimeError # Platform.script points to dill file.
 io/test_extension_test: RuntimeError # Platform.script points to dill file.
 map_insert_remove_oom_test: Skip # Heap limit too low.
-package/scenarios/packages_file_strange_formatting/empty_lines_test: CompileTimeError # Please triage.
-package/scenarios/packages_file_strange_formatting/mixed_line_ends_test: CompileTimeError # Please triage.
-package/scenarios/packages_option_only/packages_option_only_test: CompileTimeError # Please triage.
 
 # ===== Skip dartk and darkp in !$strong mode ====
 [ !$strong && ($compiler == dartk || $compiler == dartkb) ]

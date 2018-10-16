@@ -223,7 +223,7 @@ abstract class Loader<L> {
     severity ??= message.code.severity;
     if (severity == Severity.errorLegacyWarning) {
       severity =
-          target.backendTarget.strongMode ? Severity.error : Severity.warning;
+          target.backendTarget.legacyMode ? Severity.warning : Severity.error;
     }
     addMessage(message, charOffset, length, fileUri, severity,
         wasHandled: wasHandled, context: context);
@@ -250,6 +250,17 @@ charOffset: $charOffset
 fileUri: $fileUri
 severity: $severity
 """;
+    // TODO(askesc): Swap message and context around for interface checks
+    // and mixin overrides to make comparing context here unnecessary.
+    if (context != null) {
+      for (LocatedMessage contextMessage in context) {
+        trace += """
+message: ${contextMessage.message}
+charOffset: ${contextMessage.charOffset}
+fileUri: ${contextMessage.uri}
+""";
+      }
+    }
     if (!seenMessages.add(trace)) return false;
     if (message.code.severity == Severity.context) {
       internalProblem(

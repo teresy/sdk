@@ -1,122 +1,158 @@
 // Copyright (c) 2018, the Dart project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-import 'dart:io';
 
 import 'package:analyzer/src/util/sdk.dart';
+import 'package:analyzer_cli/src/fix/context.dart';
 import 'package:args/args.dart';
-import 'package:meta/meta.dart';
-
-@visibleForTesting
-StringSink errorSink = stderr;
-
-@visibleForTesting
-StringSink outSink = stdout;
-
-@visibleForTesting
-Stream<List<int>> inputStream = stdin;
-
-@visibleForTesting
-ExitHandler exitHandler = exit;
-
-@visibleForTesting
-typedef void ExitHandler(int code);
+import 'package:cli_util/cli_logging.dart';
+import 'package:path/path.dart' as path;
 
 /// Command line options for `dartfix`.
 class Options {
-  List<String> analysisRoots;
-  bool dryRun;
+  final Context context;
+
+  List<String> targets;
+  bool force;
+  bool overwrite;
   String sdkPath;
   bool verbose;
+  bool useColor;
 
-  static Options parse(List<String> args,
-      {printAndFail(String msg) = printAndFail}) {
+  Logger logger;
+
+  Options(this.context);
+
+  static Options parse(List<String> args, Context context, {Logger logger}) {
+    Options options = new Options(context ?? new Context());
     final parser = new ArgParser(allowTrailingOptions: true);
 
     parser
-      ..addOption(_sdkPathOption, help: 'The path to the Dart SDK.')
-      ..addFlag(_dryRunOption,
-          abbr: 'n',
-          help: 'Calculate and display the recommended changes,'
-              ' but exit before applying them',
+      ..addFlag(overwriteOption,
+          abbr: 'w',
+          help: 'Overwrite files with the recommended changes.',
+          defaultsTo: false,
+          negatable: false)
+      ..addFlag(forceOption,
+          abbr: 'f',
+          help: 'Apply the recommended changes even if there are errors.',
           defaultsTo: false,
           negatable: false)
       ..addFlag(_helpOption,
           abbr: 'h',
-          help:
-              'Display this help message. Add --verbose to show hidden options.',
+          help: 'Display this help message.',
           defaultsTo: false,
           negatable: false)
       ..addFlag(_verboseOption,
           abbr: 'v',
           defaultsTo: false,
           help: 'Verbose output.',
-          negatable: false);
+          negatable: false)
+      ..addFlag('color',
+          help: 'Use ansi colors when printing messages.',
+          defaultsTo: Ansi.terminalSupportsAnsi);
 
     ArgResults results;
     try {
       results = parser.parse(args);
     } on FormatException catch (e) {
-      errorSink.writeln(e.message);
-      _showUsage(parser);
-      exitHandler(15);
-      return null; // Only reachable in testing.
+      context.stderr.writeln(e.message);
+      _showUsage(parser, context);
+      context.exit(15);
     }
 
     if (results[_helpOption] as bool) {
-      _showUsage(parser);
-      exitHandler(0);
-      return null; // Only reachable in testing.
+      _showUsage(parser, context);
+      context.exit(1);
     }
 
-    Options options = new Options._fromArgs(results);
+    options._fromArgs(results);
 
-    // Check Dart SDK, and infer if unspecified.
-    options.sdkPath ??= getSdkPath(args);
+    // Infer the Dart SDK location
+    options.sdkPath = getSdkPath(args);
     String sdkPath = options.sdkPath;
     if (sdkPath == null) {
-      errorSink.writeln('No Dart SDK found.');
-      _showUsage(parser);
-      return null; // Only reachable in testing.
+      context.stderr.writeln('No Dart SDK found.');
+      _showUsage(parser, context);
     }
-    if (!(new Directory(sdkPath)).existsSync()) {
-      printAndFail('Invalid Dart SDK path: $sdkPath');
-      return null; // Only reachable in testing.
+    if (!context.exists(sdkPath)) {
+      context.stderr.writeln('Invalid Dart SDK path: $sdkPath');
+      context.exit(15);
     }
 
     // Check for files and/or directories to analyze.
-    if (options.analysisRoots == null || options.analysisRoots.isEmpty) {
-      errorSink.writeln('Expected at least one file or directory to analyze.');
-      _showUsage(parser);
-      exitHandler(15);
-      return null; // Only reachable in testing.
+    if (options.targets == null || options.targets.isEmpty) {
+      context.stderr
+          .writeln('Expected at least one file or directory to analyze.');
+      _showUsage(parser, context);
+      context.exit(15);
+    }
+
+    // Normalize and verify paths
+    options.targets =
+        options.targets.map<String>(options.makeAbsoluteAndNormalize).toList();
+    for (String target in options.targets) {
+      if (!context.isDirectory(target)) {
+        if (!context.exists(target)) {
+          context.stderr.writeln('Target does not exist: $target');
+        } else {
+          context.stderr.writeln('Expected directory, but found: $target');
+        }
+        _showUsage(parser, context);
+        context.exit(15);
+      }
+    }
+
+    if (logger == null) {
+      if (options.verbose) {
+        logger = new Logger.verbose();
+      } else {
+        logger = new Logger.standard(
+            ansi: new Ansi(
+          options.useColor != null
+              ? options.useColor
+              : Ansi.terminalSupportsAnsi,
+        ));
+      }
+    }
+
+    options.logger = logger;
+
+    if (options.verbose) {
+      context.print('Targets:');
+      for (String target in options.targets) {
+        context.print('  $target');
+      }
     }
 
     return options;
   }
 
-  Options._fromArgs(ArgResults results)
-      : analysisRoots = results.rest,
-        dryRun = results[_dryRunOption] as bool,
-        sdkPath = results[_sdkPathOption] as String,
-        verbose = results[_verboseOption] as bool;
+  void _fromArgs(ArgResults results) {
+    targets = results.rest;
+    force = results[forceOption] as bool;
+    overwrite = results[overwriteOption] as bool;
+    verbose = results[_verboseOption] as bool;
+    useColor = results.wasParsed('color') ? results['color'] as bool : null;
+  }
 
-  static _showUsage(ArgParser parser) {
-    errorSink.writeln(
-        'Usage: $_binaryName [options...] <directory or list of files>');
-    errorSink.writeln('');
-    errorSink.writeln(parser.usage);
+  String makeAbsoluteAndNormalize(String target) {
+    if (!path.isAbsolute(target)) {
+      target = path.join(context.workingDir, target);
+    }
+    return path.normalize(target);
+  }
+
+  static _showUsage(ArgParser parser, Context context) {
+    context.stderr
+        .writeln('Usage: $_binaryName [options...] <directory paths>');
+    context.stderr.writeln('');
+    context.stderr.writeln(parser.usage);
   }
 }
 
 const _binaryName = 'dartfix';
-const _dryRunOption = 'dry-run';
+const forceOption = 'force';
 const _helpOption = 'help';
-const _sdkPathOption = 'dart-sdk';
+const overwriteOption = 'overwrite';
 const _verboseOption = 'verbose';
-
-/// Print the given [message] to stderr and exit with the given [exitCode].
-void printAndFail(String message, {int exitCode: 15}) {
-  errorSink.writeln(message);
-  exitHandler(exitCode);
-}

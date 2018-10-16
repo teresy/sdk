@@ -36,8 +36,7 @@ vars = {
   "chromium_git": "https://chromium.googlesource.com",
   "fuchsia_git": "https://fuchsia.googlesource.com",
 
-  "co19_rev": "9858ee7d79cf09b50d6b5bc13fb950ae5f357954",
-  "co19_2_rev": "7514e576a02ced94a360ec51e0d26b32f9ebc82f",
+  "co19_2_rev": "9484b81650d8c5bedf72abc541960dd1c90b2329",
 
   # As Flutter does, we pull buildtools, including the clang toolchain, from
   # Fuchsia. This revision should be kept up to date with the revision pulled
@@ -80,7 +79,8 @@ vars = {
   # For more details, see https://github.com/dart-lang/sdk/issues/30164
   "dart_style_tag": "1.2.0",  # Please see the note above before updating.
 
-  "dartdoc_tag" : "v0.21.1",
+  "dartdoc_tag" : "v0.23.1",
+  "file_rev": "515ed1dd48740ab14b625de1be464cb2bca4fefd",  # 5.0.6
   "fixnum_tag": "0.10.8",
   "func_rev": "25eec48146a58967d75330075ab376b3838b18a8",
   "glob_tag": "1.1.7",
@@ -92,10 +92,10 @@ vars = {
   "http_tag" : "0.11.3+17",
   "http_throttle_tag" : "1.0.2",
   "idl_parser_rev": "5fb1ebf49d235b5a70c9f49047e83b0654031eb7",
-  "intl_tag": "0.15.6",
+  "intl_tag": "0.15.7",
   "jinja2_rev": "2222b31554f03e62600cd7e383376a7c187967a1",
   "json_rpc_2_tag": "2.0.9",
-  "linter_tag": "0.1.66",
+  "linter_tag": "0.1.68",
   "logging_tag": "0.11.3+2",
   "markdown_tag": "2.0.2",
   "matcher_tag": "0.12.3",
@@ -107,9 +107,11 @@ vars = {
   "package_config_tag": "1.0.5",
   "package_resolver_tag": "1.0.4",
   "path_tag": "1.6.2",
+  "platform_rev": "c368ca95775a4ec8d0b60899ce51299a9fbda399", # 2.2.0
   "plugin_tag": "f5b4b0e32d1406d62daccea030ba6457d14b1c47",
   "ply_rev": "604b32590ffad5cbb82e4afef1d305512d06ae93",
   "pool_tag": "1.3.6",
+  "process_rev": "b8d73f0bad7be5ab5130baf10cd042aae4366d7c", # 3.0.5
   "protobuf_tag": "0.9.0",
   "pub_rev": "9f00679ef47bc79cadc18e143720ade6c06c0100",
   "pub_semver_tag": "1.4.2",
@@ -162,9 +164,15 @@ deps = {
       ],
       "dep_type": "cipd",
   },
-
-  Var("dart_root") + "/tests/co19/src":
-      Var("dart_git") + "co19.git" + "@" + Var("co19_rev"),
+  Var("dart_root") + "/third_party/d8": {
+      "packages": [
+          {
+              "package": "dart/d8",
+              "version": "version:6.9.427.23+1",
+          },
+      ],
+      "dep_type": "cipd",
+  },
 
   Var("dart_root") + "/tests/co19_2/src":
       Var("chromium_git") + "/external/github.com/dart-lang/co19.git" +
@@ -230,6 +238,8 @@ deps = {
       Var("dart_git") + "dart2js_info.git" + "@" + Var("dart2js_info_tag"),
   Var("dart_root") + "/third_party/pkg/dartdoc":
       Var("dart_git") + "dartdoc.git" + "@" + Var("dartdoc_tag"),
+  Var("dart_root") + "/third_party/pkg/file":
+      Var("dart_git") + "file.dart.git" + "@" + Var("file_rev"),
   Var("dart_root") + "/third_party/pkg/fixnum":
       Var("dart_git") + "fixnum.git" + "@" + Var("fixnum_tag"),
   Var("dart_root") + "/third_party/pkg/func":
@@ -286,10 +296,14 @@ deps = {
       + "@" + Var("package_resolver_tag"),
   Var("dart_root") + "/third_party/pkg/path":
       Var("dart_git") + "path.git" + "@" + Var("path_tag"),
+  Var("dart_root") + "/third_party/pkg/platform":
+      Var("dart_git") + "platform.dart.git" + "@" + Var("platform_rev"),
   Var("dart_root") + "/third_party/pkg/plugin":
       Var("dart_git") + "plugin.git" + "@" + Var("plugin_tag"),
   Var("dart_root") + "/third_party/pkg/pool":
       Var("dart_git") + "pool.git" + "@" + Var("pool_tag"),
+  Var("dart_root") + "/third_party/pkg/process":
+      Var("dart_git") + "process.dart.git" + "@" + Var("process_rev"),
   Var("dart_root") + "/third_party/pkg/protobuf":
       Var("dart_git") + "protobuf.git" + "@" + Var("protobuf_tag"),
   Var("dart_root") + "/third_party/pkg/pub_semver":
@@ -372,20 +386,6 @@ deps = {
 # TODO(iposva): Move the necessary tools so that hooks can be run
 # without the runtime being available.
 hooks = [
-  {
-    'name': 'd8_testing_binaries',
-    'pattern': '.',
-    'action': [
-      'download_from_google_storage',
-      '--no_auth',
-      '--no_resume',
-      '--bucket',
-      'dart-dependencies',
-      '--recursive',
-      '--directory',
-      Var('dart_root') + '/third_party/d8',
-    ],
-  },
   {
     "name": "firefox_jsshell",
     "pattern": ".",

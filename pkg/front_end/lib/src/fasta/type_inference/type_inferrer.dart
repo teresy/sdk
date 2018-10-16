@@ -89,6 +89,8 @@ import '../fasta_codes.dart'
         templateUndefinedMethod,
         templateUndefinedSetter;
 
+import '../kernel/kernel_builder.dart' show KernelLibraryBuilder;
+
 import '../kernel/kernel_expression_generator.dart' show buildIsNull;
 
 import '../kernel/kernel_shadow_ast.dart'
@@ -100,13 +102,12 @@ import '../kernel/kernel_shadow_ast.dart'
         ShadowField,
         ShadowMember,
         VariableDeclarationJudgment,
-        getExplicitTypeArguments;
+        getExplicitTypeArguments,
+        getInferredType;
 
 import '../names.dart' show callName;
 
 import '../problems.dart' show unexpected, unhandled;
-
-import '../source/source_library_builder.dart' show SourceLibraryBuilder;
 
 import '../source/source_loader.dart' show SourceLoader;
 
@@ -439,6 +440,14 @@ enum MethodContravarianceCheckKind {
 /// This class describes the interface for use by clients of type inference
 /// (e.g. BodyBuilder).  Derived classes should derive from [TypeInferrerImpl].
 abstract class TypeInferrer {
+  final Map<TreeNode, DartType> inferredTypesMap = <TreeNode, DartType>{};
+
+  final CoreTypes coreTypes;
+
+  TypeInferrer(this.coreTypes);
+
+  KernelLibraryBuilder get library;
+
   /// Gets the [TypePromoter] that can be used to perform type promotion within
   /// this method body or initializer.
   TypePromoter get typePromoter;
@@ -473,6 +482,20 @@ abstract class TypeInferrer {
   /// expression.
   void inferParameterInitializer(InferenceHelper helper,
       kernel.Expression initializer, DartType declaredType);
+
+  DartType storeInferredType(TreeNode node, DartType type) {
+    if (node is ExpressionJudgment) {
+      return node.inferredType = type;
+    } else {
+      assert(!inferredTypesMap.containsKey(node));
+      return inferredTypesMap[node] = type;
+    }
+  }
+
+  DartType readInferredType(TreeNode node) {
+    assert(inferredTypesMap.containsKey(node));
+    return inferredTypesMap[node];
+  }
 }
 
 /// Implementation of [TypeInferrer] which doesn't do any type inference.
@@ -486,7 +509,10 @@ class TypeInferrerDisabled extends TypeInferrer {
   @override
   final TypeSchemaEnvironment typeSchemaEnvironment;
 
-  TypeInferrerDisabled(this.typeSchemaEnvironment);
+  TypeInferrerDisabled(this.typeSchemaEnvironment) : super(null);
+
+  @override
+  KernelLibraryBuilder get library => null;
 
   @override
   Uri get uri => null;
@@ -536,8 +562,6 @@ abstract class TypeInferrerImpl extends TypeInferrer {
   /// should apply.
   final bool isTopLevel;
 
-  final CoreTypes coreTypes;
-
   final bool strongMode;
 
   final ClassHierarchy classHierarchy;
@@ -548,7 +572,8 @@ abstract class TypeInferrerImpl extends TypeInferrer {
 
   final InterfaceType thisType;
 
-  final SourceLibraryBuilder library;
+  @override
+  final KernelLibraryBuilder library;
 
   InferenceHelper helper;
 
@@ -566,16 +591,32 @@ abstract class TypeInferrerImpl extends TypeInferrer {
 
   TypeInferrerImpl(
       this.engine, this.uri, bool topLevel, this.thisType, this.library)
-      : coreTypes = engine.coreTypes,
-        strongMode = engine.strongMode,
+      : strongMode = engine.strongMode,
         classHierarchy = engine.classHierarchy,
         instrumentation = topLevel ? null : engine.instrumentation,
         typeSchemaEnvironment = engine.typeSchemaEnvironment,
-        isTopLevel = topLevel;
+        isTopLevel = topLevel,
+        super(engine.coreTypes);
 
   /// Gets the type promoter that should be used to promote types during
   /// inference.
   TypePromoter get typePromoter;
+
+  bool isDoubleContext(DartType typeContext) {
+    // A context is a double context if double is assignable to it but int is
+    // not.  That is the type context is a double context if it is:
+    //   * double
+    //   * FutureOr<T> where T is a double context
+    //
+    // We check directly, rather than using isAssignable because it's simpler.
+    while (typeContext is InterfaceType &&
+        typeContext.classNode == coreTypes.futureOrClass &&
+        typeContext.typeArguments.isNotEmpty) {
+      InterfaceType type = typeContext;
+      typeContext = type.typeArguments.first;
+    }
+    return typeContext == coreTypes.doubleClass.rawType;
+  }
 
   bool isAssignable(DartType expectedType, DartType actualType) {
     return typeSchemaEnvironment.isSubtypeOf(expectedType, actualType) ||
@@ -1161,7 +1202,7 @@ abstract class TypeInferrerImpl extends TypeInferrer {
       bool isConst: false}) {
     lastInferredSubstitution = null;
     lastCalleeType = null;
-    var calleeTypeParameters = calleeType.typeParameters;
+    List<TypeParameter> calleeTypeParameters = calleeType.typeParameters;
     if (calleeTypeParameters.isNotEmpty) {
       // It's possible that one of the callee type parameters might match a type
       // that already exists as part of inference (e.g. the type of an
@@ -1586,12 +1627,8 @@ abstract class TypeInferrerImpl extends TypeInferrer {
 
   /// Performs the core type inference algorithm for property gets (this handles
   /// both null-aware and non-null-aware property gets).
-  void inferPropertyGet(
-      ExpressionJudgment expression,
-      ExpressionJudgment receiver,
-      int fileOffset,
-      bool forSyntheticToken,
-      DartType typeContext,
+  void inferPropertyGet(Expression expression, Expression receiver,
+      int fileOffset, bool forSyntheticToken, DartType typeContext,
       {VariableDeclaration receiverVariable,
       PropertyGet desugaredGet,
       Object interfaceMember,
@@ -1602,7 +1639,7 @@ abstract class TypeInferrerImpl extends TypeInferrer {
       receiverType = thisType;
     } else {
       inferExpression(receiver, const UnknownType(), true);
-      receiverType = receiver.inferredType;
+      receiverType = getInferredType(receiver, this);
     }
     if (strongMode) {
       receiverVariable?.type = receiverType;
@@ -1630,7 +1667,7 @@ abstract class TypeInferrerImpl extends TypeInferrer {
       inferredType =
           instantiateTearOff(inferredType, typeContext, replacedExpression);
     }
-    expression.inferredType = inferredType;
+    storeInferredType(expression, inferredType);
   }
 
   /// Modifies a type as appropriate when inferring a closure return type.

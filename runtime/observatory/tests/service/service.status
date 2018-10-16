@@ -64,9 +64,6 @@ async_generator_breakpoint_test: Skip # Issue 29145
 dev_fs_http_put_weird_char_test: Skip # Windows disallows carriage returns in paths
 dev_fs_weird_char_test: Skip # Windows disallows question mark in paths
 
-[ $builder_tag == optimization_counter_threshold && $compiler != dartk ]
-pause_on_unhandled_async_exceptions_test: Pass, RuntimeError # Issue 33365
-
 [ $compiler == none && $runtime == vm && $system == fuchsia ]
 *: Skip # Not yet triaged.
 
@@ -107,7 +104,7 @@ step_through_getter_test: RuntimeError # Debugging StringConcatenation doesn't w
 *: SkipByDesign
 
 [ $compiler == dartk || $compiler == dartkp ]
-rewind_test: Pass, RuntimeError, Slow # Issue 34287
+rewind_test: Pass, Slow
 
 # Skip all service tests because random reloads interfere.
 [ $hot_reload || $hot_reload_rollback ]

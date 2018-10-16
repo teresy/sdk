@@ -4,23 +4,28 @@
 
 import 'package:analysis_server/plugin/edit/assist/assist_core.dart';
 import 'package:analysis_server/plugin/edit/assist/assist_dart.dart';
+import 'package:analysis_server/plugin/edit/fix/fix_core.dart';
 import 'package:analysis_server/protocol/protocol.dart';
 import 'package:analysis_server/protocol/protocol_generated.dart';
 import 'package:analysis_server/src/analysis_server.dart';
 import 'package:analysis_server/src/services/correction/assist.dart';
 import 'package:analysis_server/src/services/correction/assist_internal.dart';
+import 'package:analysis_server/src/services/correction/fix.dart';
+import 'package:analysis_server/src/services/correction/fix_internal.dart';
 import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/file_system/file_system.dart';
+import 'package:analyzer/src/dart/analysis/ast_provider_driver.dart';
 import 'package:analyzer/src/dart/analysis/driver.dart';
+import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/lint/linter.dart';
 import 'package:analyzer/src/lint/linter_visitor.dart';
 import 'package:analyzer/src/lint/registry.dart';
 import 'package:analyzer/src/services/lint.dart';
 import 'package:analyzer_plugin/protocol/protocol_common.dart'
     show SourceChange, SourceEdit, SourceFileEdit;
-import 'package:front_end/src/base/source.dart';
+import 'package:front_end/src/fasta/fasta_codes.dart';
 import 'package:front_end/src/scanner/token.dart';
 import 'package:source_span/src/span.dart';
 
@@ -55,15 +60,15 @@ class EditDartFix {
     // Validate each included file and directory.
     final resourceProvider = server.resourceProvider;
     final contextManager = server.contextManager;
-    for (String path in params.included) {
-      if (!server.isValidFilePath(path)) {
-        return new Response.invalidFilePathFormat(request, path);
+    for (String filePath in params.included) {
+      if (!server.isValidFilePath(filePath)) {
+        return new Response.invalidFilePathFormat(request, filePath);
       }
-      Resource res = resourceProvider.getResource(path);
+      Resource res = resourceProvider.getResource(filePath);
       if (!res.exists ||
-          !(contextManager.includedPaths.contains(path) ||
-              contextManager.isInAnalysisRoot(path))) {
-        return new Response.fileNotAnalyzed(request, path);
+          !(contextManager.includedPaths.contains(filePath) ||
+              contextManager.isInAnalysisRoot(filePath))) {
+        return new Response.fileNotAnalyzed(request, filePath);
       }
       if (res is Folder) {
         fixFolders.add(res);
@@ -115,6 +120,9 @@ class EditDartFix {
     for (String rootPath in contextManager.includedPaths) {
       resources.add(resourceProvider.getResource(rootPath));
     }
+    descriptionOfFixes = <String>[];
+    otherRecommendations = <String>[];
+    sourceChange = new SourceChange('dartfix');
     bool hasErrors = false;
     while (resources.isNotEmpty) {
       Resource res = resources.removeLast();
@@ -132,9 +140,10 @@ class EditDartFix {
       if (unit != null) {
         if (!hasErrors) {
           for (AnalysisError error in result.errors) {
-            if (error.errorCode.type == ErrorType.SYNTACTIC_ERROR) {
-              hasErrors = true;
-              break;
+            if (!(await fixError(result, error))) {
+              if (error.errorCode.type == ErrorType.SYNTACTIC_ERROR) {
+                hasErrors = true;
+              }
             }
           }
         }
@@ -154,34 +163,88 @@ class EditDartFix {
       linter.reporter = null;
     }
 
-    // Reporting
-    descriptionOfFixes = <String>[];
-    otherRecommendations = <String>[];
-    sourceChange = new SourceChange('dartfix');
+    // Apply distributed fixes
     for (LinterFix fix in fixes) {
       await fix.applyFix();
     }
+
     return new EditDartfixResult(descriptionOfFixes, otherRecommendations,
             hasErrors, sourceChange.edits)
         .toResponse(request.id);
   }
 
+  Future<bool> fixError(AnalysisResult result, AnalysisError error) async {
+    if (error.errorCode ==
+        StaticTypeWarningCode.WRONG_NUMBER_OF_TYPE_ARGUMENTS_CONSTRUCTOR) {
+      // TODO(danrubel): Rather than comparing the error codes individually,
+      // it would be better if each error code could specify
+      // whether or not it could be fixed automatically.
+
+      // Fall through to calculate and apply the fix
+    } else {
+      // This error cannot be automatically fixed
+      return false;
+    }
+
+    final location = '${locationDescription(result, error.offset)}';
+    final dartContext = new DartFixContextImpl(
+        new FixContextImpl(
+            server.resourceProvider, result.driver, error, result.errors),
+        new AstProviderForDriver(result.driver),
+        result.unit);
+    final processor = new FixProcessor(dartContext);
+    Fix fix = await processor.computeFix();
+    if (fix != null) {
+      addFix('${fix.change.message} in $location', fix.change);
+    } else {
+      // TODO(danrubel): Determine why the fix could not be applied
+      // and report that in the description.
+      addRecommendation('Could not fix "${error.message}" in $location');
+    }
+    return true;
+  }
+
   /// Return `true` if the path in within the set of `included` files
   /// or is within an `included` directory.
-  bool isIncluded(String path) {
-    if (path != null) {
+  bool isIncluded(String filePath) {
+    if (filePath != null) {
       for (File file in fixFiles) {
-        if (file.path == path) {
+        if (file.path == filePath) {
           return true;
         }
       }
       for (Folder folder in fixFolders) {
-        if (folder.contains(path)) {
+        if (folder.contains(filePath)) {
           return true;
         }
       }
     }
     return false;
+  }
+
+  /// Return a human readable description of the specified offset and file.
+  String locationDescription(AnalysisResult result, int offset) {
+    // TODO(danrubel): Pass the location back to the client along with the
+    // message indicating what was or was not automatically fixed
+    // rather than interpreting and integrating the location into the message.
+    final description = new StringBuffer();
+    // Determine the relative path
+    for (Folder folder in fixFolders) {
+      if (folder.contains(result.path)) {
+        description.write(server.resourceProvider.pathContext
+            .relative(result.path, from: folder.path));
+        break;
+      }
+    }
+    if (description.isEmpty) {
+      description.write(result.path);
+    }
+    // Determine the line and column number
+    if (offset >= 0) {
+      final loc = result.unit.lineInfo.getLocation(offset);
+      description.write(':${loc.lineNumber}');
+    }
+    return description.toString();
   }
 }
 
@@ -252,6 +315,12 @@ abstract class LinterFix implements ErrorReporter {
   }
 
   @override
+  void reportErrorMessage(
+      ErrorCode errorCode, int offset, int length, Message message) {
+    // ignored
+  }
+
+  @override
   void reportTypeErrorForNode(
       ErrorCode errorCode, AstNode node, List<Object> arguments) {
     // ignored
@@ -270,8 +339,8 @@ class PreferMixinFix extends LinterFix {
       [List<Object> arguments]) {
     TypeName type = node;
     Element element = type.name.staticElement;
-    String path = element.source?.fullName;
-    if (path != null && dartFix.isIncluded(path)) {
+    String filePath = element.source?.fullName;
+    if (filePath != null && dartFix.isIncluded(filePath)) {
       classesToConvert.add(element);
     }
   }
@@ -284,10 +353,9 @@ class PreferMixinFix extends LinterFix {
   }
 
   void convertClassToMixin(Element elem) async {
-    String path = elem.source?.fullName;
-    AnalysisResult result = await dartFix.server.getAnalysisResult(path);
+    AnalysisResult result =
+        await dartFix.server.getAnalysisResult(elem.source?.fullName);
 
-    // TODO(danrubel): Verify that class can be converted
     for (CompilationUnitMember declaration in result.unit.declarations) {
       if (declaration is ClassOrMixinDeclaration &&
           declaration.name.name == elem.name) {
@@ -296,17 +364,19 @@ class PreferMixinFix extends LinterFix {
                 dartFix, elem.source, result.unit, declaration.name));
         List<Assist> assists = await processor
             .computeAssist(DartAssistKind.CONVERT_CLASS_TO_MIXIN);
+        final location = dartFix.locationDescription(result, elem.nameOffset);
         if (assists.isNotEmpty) {
           for (Assist assist in assists) {
             dartFix.addFix(
-                'Convert class to mixin: ${elem.name}', assist.change);
+                'Convert ${elem.displayName} to a mixin in $location',
+                assist.change);
           }
         } else {
           // TODO(danrubel): If assists is empty, then determine why
           // assist could not be performed and report that in the description.
           dartFix.addRecommendation(
-              'Could not automatically convert ${elem.name} to a mixin'
-              ' because the class contains a constructor.');
+              'Could not convert ${elem.displayName} to a mixin'
+              ' because the class contains a constructor in $location');
         }
       }
     }

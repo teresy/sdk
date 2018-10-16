@@ -1,4 +1,4 @@
-// Copyright (c) 2017, the Dart project authors.  Please see the AUTHORS file
+// Copyright (c) 2017, the Dart project authors. Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
@@ -619,9 +619,14 @@ class MockSdk implements DartSdk {
 }
 
 class _MockSdkLibrary implements SdkLibrary {
+  @override
   final String shortName;
+
+  @override
   final String path;
+
   final String content;
+
   final Map<String, String> parts;
 
   const _MockSdkLibrary(this.shortName, this.path, this.content,

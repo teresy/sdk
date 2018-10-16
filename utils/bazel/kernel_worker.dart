@@ -133,10 +133,9 @@ Future<bool> computeKernel(List<String> args,
   var summaryOnly = parsedArgs['summary-only'] as bool;
   var excludeNonSources = parsedArgs['exclude-non-sources'] as bool;
   if (summaryOnly) {
-    target = new SummaryTarget(
-        sources, excludeNonSources, new TargetFlags(strongMode: true));
+    target = new SummaryTarget(sources, excludeNonSources, new TargetFlags());
   } else {
-    target = new VmTarget(new TargetFlags(strongMode: true));
+    target = new VmTarget(new TargetFlags());
   }
   var state = await fe.initializeCompiler(
       // TODO(sigmund): pass an old state once we can make use of it.
@@ -152,17 +151,13 @@ Future<bool> computeKernel(List<String> args,
       target,
       fileSystem);
 
-  void onProblem(fe.FormattedMessage message, severity,
-      List<fe.FormattedMessage> context) {
-    out.writeln(message.formatted);
-    for (fe.FormattedMessage message in context) {
-      out.writeln(message.formatted);
-    }
+  void onDiagnostic(fe.DiagnosticMessage message) {
+    fe.printDiagnosticMessage(message, out.writeln);
     succeeded = false;
   }
 
   var kernel =
-      await fe.compile(state, sources, onProblem, summaryOnly: summaryOnly);
+      await fe.compile(state, sources, onDiagnostic, summaryOnly: summaryOnly);
 
   if (kernel != null) {
     var outputFile = new File(parsedArgs['output']);

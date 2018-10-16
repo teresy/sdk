@@ -5,8 +5,10 @@
 import 'dart:async';
 
 import 'package:analyzer_fe_comparison/src/comparison_node.dart';
-import 'package:front_end/src/api_prototype/compilation_message.dart';
-import 'package:front_end/src/api_prototype/compiler_options.dart';
+import 'package:front_end/src/api_prototype/compiler_options.dart'
+    show CompilerOptions;
+import 'package:front_end/src/api_prototype/diagnostic_message.dart'
+    show DiagnosticMessage, DiagnosticMessageHandler, getMessageHeaderText;
 import 'package:front_end/src/api_prototype/kernel_generator.dart';
 import 'package:front_end/src/api_prototype/standard_file_system.dart';
 import 'package:kernel/ast.dart';
@@ -16,12 +18,12 @@ import 'package:kernel/target/targets.dart';
 /// [ComparisonNode] representing them.
 Future<ComparisonNode> analyzePackage(
     List<Uri> inputs, Uri packagesFileUri, Uri platformUri) async {
-  var errors = <CompilationMessage>[];
+  var messages = <DiagnosticMessage>[];
   var component = await kernelForComponent(
-      inputs, _makeCompilerOptions(packagesFileUri, platformUri, errors.add));
-  if (errors.isNotEmpty) {
+      inputs, _makeCompilerOptions(packagesFileUri, platformUri, messages.add));
+  if (messages.isNotEmpty) {
     return ComparisonNode(
-        'Error occurred', errors.map(_compilationMessageToNode).toList());
+        'Error occurred', messages.map(_diagnosticMessageToNode).toList());
   }
   var libraryNodes = <ComparisonNode>[];
   var visitor = _KernelVisitor(libraryNodes);
@@ -39,12 +41,12 @@ Future<ComparisonNode> analyzePackage(
 /// Only libraries whose URI passes the [uriFilter] are included in the results.
 Future<ComparisonNode> analyzeProgram(Uri input, Uri packagesFileUri,
     Uri platformUri, bool uriFilter(Uri uri)) async {
-  var errors = <CompilationMessage>[];
+  var messages = <DiagnosticMessage>[];
   var component = await kernelForProgram(
-      input, _makeCompilerOptions(packagesFileUri, platformUri, errors.add));
-  if (errors.isNotEmpty) {
+      input, _makeCompilerOptions(packagesFileUri, platformUri, messages.add));
+  if (messages.isNotEmpty) {
     return ComparisonNode(
-        'Error occurred', errors.map(_compilationMessageToNode).toList());
+        'Error occurred', messages.map(_diagnosticMessageToNode).toList());
   }
   var libraryNodes = <ComparisonNode>[];
   var visitor = _KernelVisitor(libraryNodes);
@@ -56,13 +58,13 @@ Future<ComparisonNode> analyzeProgram(Uri input, Uri packagesFileUri,
   return ComparisonNode.sorted('Component', libraryNodes);
 }
 
-ComparisonNode _compilationMessageToNode(CompilationMessage message) {
-  return ComparisonNode(message.toString());
+ComparisonNode _diagnosticMessageToNode(DiagnosticMessage message) {
+  return ComparisonNode(getMessageHeaderText(message));
 }
 
-CompilerOptions _makeCompilerOptions(
-    Uri packagesFileUri, Uri platformUri, ErrorHandler onError) {
-  var targetFlags = TargetFlags(strongMode: true, syncAsync: true);
+CompilerOptions _makeCompilerOptions(Uri packagesFileUri, Uri platformUri,
+    DiagnosticMessageHandler onDiagnostic) {
+  var targetFlags = TargetFlags(syncAsync: true);
   var target = NoneTarget(targetFlags);
   var fileSystem = StandardFileSystem.instance;
 
@@ -70,11 +72,10 @@ CompilerOptions _makeCompilerOptions(
     ..fileSystem = fileSystem
     ..packagesFileUri = packagesFileUri
     ..sdkSummary = platformUri
-    ..strongMode = true
     ..target = target
     ..throwOnErrorsForDebugging = false
     ..embedSourceText = false
-    ..onError = onError;
+    ..onDiagnostic = onDiagnostic;
 }
 
 /// Visitor for serializing a kernel representation of a program into
@@ -96,7 +97,9 @@ class _KernelVisitor extends TreeVisitor<void> {
     if (class_.isAnonymousMixin) return null;
     var kind = class_.isEnum
         ? 'Enum'
-        : class_.isMixinApplication ? 'MixinApplication' : 'Class';
+        : class_.isMixinApplication
+            ? 'MixinApplication'
+            : class_.isMixinDeclaration ? 'Mixin' : 'Class';
     var children = <ComparisonNode>[];
     var visitor = _KernelVisitor(children);
     if (class_.isEnum) {
@@ -110,22 +113,40 @@ class _KernelVisitor extends TreeVisitor<void> {
       visitor._visitTypeParameters(class_.typeParameters);
       if (class_.supertype != null) {
         var declaredSupertype = class_.supertype.asInterfaceType;
-        var mixedInTypes = <DartType>[];
-        if (class_.isMixinApplication) {
-          mixedInTypes.add(class_.mixedInType.asInterfaceType);
-        }
-        while (declaredSupertype.classNode.isAnonymousMixin) {
-          // Since we're walking from the class to its declared supertype, we
-          // encounter the mixins in the reverse order that they were declared,
-          // so we have to use [List.insert] to add them to [mixedInTypes].
-          mixedInTypes.insert(
-              0, declaredSupertype.classNode.mixedInType.asInterfaceType);
-          declaredSupertype =
-              declaredSupertype.classNode.supertype.asInterfaceType;
-        }
-        children.add(_TypeVisitor.translate('Extends: ', declaredSupertype));
-        for (int i = 0; i < mixedInTypes.length; i++) {
-          children.add(_TypeVisitor.translate('Mixin $i: ', mixedInTypes[i]));
+        if (class_.isMixinDeclaration) {
+          // Kernel represents a mixin declaration such as:
+          //   mixin M on S0, S1 {...}
+          // By desugaring it to two classes:
+          //   abstract class _M&S0&S1 implements S0, S1 {}
+          //   abstract class M extends M&S0&S1 {...}
+          List<Supertype> superclassImplements;
+          if (declaredSupertype.classNode.isAnonymousMixin) {
+            superclassImplements = declaredSupertype.classNode.implementedTypes;
+          } else {
+            superclassImplements = [class_.supertype];
+          }
+          for (int i = 0; i < superclassImplements.length; i++) {
+            children.add(_TypeVisitor.translate(
+                'On $i: ', superclassImplements[i].asInterfaceType));
+          }
+        } else {
+          var mixedInTypes = <DartType>[];
+          if (class_.isMixinApplication) {
+            mixedInTypes.add(class_.mixedInType.asInterfaceType);
+          }
+          while (declaredSupertype.classNode.isAnonymousMixin) {
+            // Since we're walking from the class to its declared supertype, we
+            // encounter the mixins in the reverse order that they were declared,
+            // so we have to use [List.insert] to add them to [mixedInTypes].
+            mixedInTypes.insert(
+                0, declaredSupertype.classNode.mixedInType.asInterfaceType);
+            declaredSupertype =
+                declaredSupertype.classNode.supertype.asInterfaceType;
+          }
+          children.add(_TypeVisitor.translate('Extends: ', declaredSupertype));
+          for (int i = 0; i < mixedInTypes.length; i++) {
+            children.add(_TypeVisitor.translate('Mixin $i: ', mixedInTypes[i]));
+          }
         }
       }
       for (int i = 0; i < class_.implementedTypes.length; i++) {

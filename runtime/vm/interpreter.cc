@@ -92,8 +92,11 @@ class InterpreterHelpers {
  public:
 #define DEFINE_CASTS(Type)                                                     \
   DART_FORCE_INLINE static Raw##Type* CastTo##Type(RawObject* obj) {           \
-    ASSERT((k##Type##Cid == kSmiCid) ? !obj->IsHeapObject()                    \
-                                     : obj->Is##Type());                       \
+    ASSERT((k##Type##Cid == kSmiCid)                                           \
+               ? !obj->IsHeapObject()                                          \
+               : (k##Type##Cid == kIntegerCid)                                 \
+                     ? (!obj->IsHeapObject() || obj->IsMint())                 \
+                     : obj->Is##Type());                                       \
     return reinterpret_cast<Raw##Type*>(obj);                                  \
   }
   CLASS_LIST(DEFINE_CASTS)
@@ -662,6 +665,9 @@ DART_FORCE_INLINE static void LeaveSyntheticFrame(RawObject*** FP,
   *SP = fp - kKBCDartFrameFixedSize;
 }
 
+// Calling into runtime may trigger garbage collection and relocate objects,
+// so all RawObject* pointers become outdated and should not be used across
+// runtime calls.
 // Note: functions below are marked DART_NOINLINE to recover performance on
 // ARM where inlining these functions into the interpreter loop seemed to cause
 // some code quality issues.
@@ -785,6 +791,7 @@ DART_NOINLINE bool Interpreter::ProcessInvocation(bool* invoked,
                                                   RawObject*** FP,
                                                   RawObject*** SP) {
   ASSERT(!Function::HasCode(function) && !Function::HasBytecode(function));
+  ASSERT(function == call_top[0]);
   // If the function is an implicit getter or setter, process its invocation
   // here without code or bytecode.
   RawFunction::Kind kind = Function::kind(function);
@@ -801,7 +808,7 @@ DART_NOINLINE bool Interpreter::ProcessInvocation(bool* invoked,
     }
     case RawFunction::kImplicitSetter: {
       // Field object is cached in function's data_.
-      RawInstance* instance = reinterpret_cast<RawInstance*>(*call_base);
+      RawInstance* instance = reinterpret_cast<RawInstance*>(call_base[0]);
       RawField* field = reinterpret_cast<RawField*>(function->ptr()->data_);
       intptr_t offset_in_words = Smi::Value(field->ptr()->value_.offset_);
       RawAbstractType* field_type = field->ptr()->type_;
@@ -815,7 +822,7 @@ DART_NOINLINE bool Interpreter::ProcessInvocation(bool* invoked,
       // Perform type test of value if field type is not one of dynamic, object,
       // or void, and if the value is not null.
       RawObject* null_value = Object::null();
-      RawObject* value = *(call_base + 1);
+      RawObject* value = call_base[1];
       if (cid != kDynamicCid && cid != kInstanceCid && cid != kVoidCid &&
           value != null_value) {
         RawSubtypeTestCache* cache = field->ptr()->type_test_cache_;
@@ -829,29 +836,40 @@ DART_NOINLINE bool Interpreter::ProcessInvocation(bool* invoked,
             *invoked = true;
             return false;
           }
+          // Reload objects after the call which may trigger GC.
+          function = reinterpret_cast<RawFunction*>(call_top[0]);
+          field = reinterpret_cast<RawField*>(function->ptr()->data_);
+          field_type = field->ptr()->type_;
+          instance = reinterpret_cast<RawInstance*>(call_base[0]);
+          value = call_base[1];
           cache = reinterpret_cast<RawSubtypeTestCache*>(call_top[1]);
           field->ptr()->type_test_cache_ = cache;
         }
         // Push arguments of type test.
-        // Type checked value is at call_base + 1.
-        call_base[2] = field_type;
+        call_top[1] = value;
+        call_top[2] = field_type;
         // Provide type arguments of instance as instantiator.
         RawClass* instance_class = thread->isolate()->class_table()->At(
             InterpreterHelpers::GetClassId(instance));
-        call_base[3] =
+        call_top[3] =
             instance_class->ptr()->num_type_arguments_ > 0
                 ? reinterpret_cast<RawObject**>(
                       instance
                           ->ptr())[instance_class->ptr()
                                        ->type_arguments_field_offset_in_words_]
                 : null_value;
-        call_base[4] = null_value;  // Implicit setters cannot be generic.
-        call_base[5] = field->ptr()->name_;
-        if (!AssertAssignable(thread, *pc, *FP, call_base + 5, call_base + 1,
+        call_top[4] = null_value;  // Implicit setters cannot be generic.
+        call_top[5] = field->ptr()->name_;
+        if (!AssertAssignable(thread, *pc, *FP, call_top + 5, call_top + 1,
                               cache)) {
           *invoked = true;
           return false;
         }
+        // Reload objects after the call which may trigger GC.
+        function = reinterpret_cast<RawFunction*>(call_top[0]);
+        field = reinterpret_cast<RawField*>(function->ptr()->data_);
+        instance = reinterpret_cast<RawInstance*>(call_base[0]);
+        value = call_base[1];
       }
       if (thread->isolate()->use_field_guards()) {
         // Check value cid according to field.guarded_cid().
@@ -877,6 +895,9 @@ DART_NOINLINE bool Interpreter::ProcessInvocation(bool* invoked,
               *invoked = true;
               return false;
             }
+            // Reload objects after the call which may trigger GC.
+            instance = reinterpret_cast<RawInstance*>(call_base[0]);
+            value = call_base[1];
           }
         }
       }
@@ -902,6 +923,9 @@ DART_NOINLINE bool Interpreter::ProcessInvocation(bool* invoked,
           *invoked = true;
           return false;
         }
+        // Reload objects after the call which may trigger GC.
+        function = reinterpret_cast<RawFunction*>(call_top[0]);
+        field = reinterpret_cast<RawField*>(function->ptr()->data_);
         pp_ = InterpreterHelpers::FrameCode(*FP)->ptr()->object_pool_;
         // The field is initialized by the runtime call, but not returned.
         value = field->ptr()->value_.static_value_;
@@ -1052,7 +1076,8 @@ DART_FORCE_INLINE bool Interpreter::Invoke(Thread* thread,
 #if defined(DEBUG)
   if (IsTracingExecution()) {
     THR_Print("%" Pu64 " ", icount_);
-    THR_Print("invoking %s\n", Function::Handle(function).ToCString());
+    THR_Print("invoking %s\n",
+              Function::Handle(function).ToFullyQualifiedCString());
   }
 #endif
   RawCode* bytecode = function->ptr()->bytecode_;
@@ -1366,6 +1391,29 @@ DART_FORCE_INLINE void Interpreter::PrepareForTailCall(
 
 #define LOAD_CONSTANT(index) (pp_->ptr()->data()[(index)].raw_obj_)
 
+#define UNBOX_INT64(value, obj, selector)                                      \
+  int64_t value;                                                               \
+  {                                                                            \
+    word raw_value = reinterpret_cast<word>(obj);                              \
+    if (LIKELY((raw_value & kSmiTagMask) == kSmiTag)) {                        \
+      value = raw_value >> kSmiTagShift;                                       \
+    } else {                                                                   \
+      if (UNLIKELY(obj == null_value)) {                                       \
+        SP[0] = selector.raw();                                                \
+        goto ThrowNullError;                                                   \
+      }                                                                        \
+      value = Integer::GetInt64Value(RAW_CAST(Integer, obj));                  \
+    }                                                                          \
+  }
+
+#define BOX_INT64_RESULT(result)                                               \
+  if (LIKELY(Smi::IsValid(result))) {                                          \
+    SP[0] = Smi::New(static_cast<intptr_t>(result));                           \
+  } else if (!AllocateInt64Box(thread, result, pc, FP, SP)) {                  \
+    HANDLE_EXCEPTION;                                                          \
+  }                                                                            \
+  ASSERT(Integer::GetInt64Value(RAW_CAST(Integer, SP[0])) == result);
+
 // Returns true if deoptimization succeeds.
 DART_FORCE_INLINE bool Interpreter::Deoptimize(Thread* thread,
                                                uint32_t** pc,
@@ -1510,6 +1558,42 @@ RawObject* Interpreter::Call(const Function& function,
                              Thread* thread) {
   return Call(function.raw(), arguments_descriptor.raw(), arguments.Length(),
               arguments.raw_ptr()->data(), thread);
+}
+
+// Allocate _Mint box for the given int64_t value and puts it into SP[0].
+// Returns false on exception.
+DART_NOINLINE bool Interpreter::AllocateInt64Box(Thread* thread,
+                                                 int64_t value,
+                                                 uint32_t* pc,
+                                                 RawObject** FP,
+                                                 RawObject** SP) {
+  ASSERT(!Smi::IsValid(value));
+  const intptr_t instance_size = Mint::InstanceSize();
+  const uword start =
+      thread->heap()->new_space()->TryAllocateInTLAB(thread, instance_size);
+  if (LIKELY(start != 0)) {
+    uword tags = 0;
+    tags = RawObject::ClassIdTag::update(kMintCid, tags);
+    tags = RawObject::SizeTag::update(instance_size, tags);
+    tags = RawObject::NewBit::update(true, tags);
+    // Also writes zero in the hash_ field.
+    *reinterpret_cast<uword*>(start + Mint::tags_offset()) = tags;
+    *reinterpret_cast<int64_t*>(start + Mint::value_offset()) = value;
+    SP[0] = reinterpret_cast<RawObject*>(start + kHeapObjectTag);
+    return true;
+  } else {
+    SP[0] = 0;  // Space for the result.
+    SP[1] = thread->isolate()->object_store()->mint_class();  // Class object.
+    SP[2] = Object::null();                                  // Type arguments.
+    Exit(thread, FP, SP + 3, pc);
+    NativeArguments args(thread, 2, SP + 1, SP);
+    if (!InvokeRuntime(thread, this, DRT_AllocateObject, args)) {
+      return false;
+    }
+    *reinterpret_cast<int64_t*>(reinterpret_cast<uword>(SP[0]) -
+                                kHeapObjectTag + Mint::value_offset()) = value;
+    return true;
+  }
 }
 
 RawObject* Interpreter::Call(RawFunction* function,
@@ -2171,6 +2255,7 @@ RawObject* Interpreter::Call(RawFunction* function,
       } break;
       case MethodRecognizer::kLinkedHashMap_setHashMask: {
         RawInstance* instance = reinterpret_cast<RawInstance*>(SP[-1]);
+        ASSERT(!SP[0]->IsHeapObject());
         reinterpret_cast<RawObject**>(
             instance->ptr())[LinkedHashMap::hash_mask_offset() / kWordSize] =
             SP[0];
@@ -2183,6 +2268,7 @@ RawObject* Interpreter::Call(RawFunction* function,
       } break;
       case MethodRecognizer::kLinkedHashMap_setUsedData: {
         RawInstance* instance = reinterpret_cast<RawInstance*>(SP[-1]);
+        ASSERT(!SP[0]->IsHeapObject());
         reinterpret_cast<RawObject**>(
             instance->ptr())[LinkedHashMap::used_data_offset() / kWordSize] =
             SP[0];
@@ -2195,17 +2281,25 @@ RawObject* Interpreter::Call(RawFunction* function,
       } break;
       case MethodRecognizer::kLinkedHashMap_setDeletedKeys: {
         RawInstance* instance = reinterpret_cast<RawInstance*>(SP[-1]);
+        ASSERT(!SP[0]->IsHeapObject());
         reinterpret_cast<RawObject**>(
             instance->ptr())[LinkedHashMap::deleted_keys_offset() / kWordSize] =
             SP[0];
         *--SP = null_value;
       } break;
       default: {
-        NativeFunctionWrapper trampoline = NativeEntryData::GetTrampoline(data);
-        NativeFunction function = NativeEntryData::GetNativeFunction(data);
+        NativeEntryData::Payload* payload =
+            NativeEntryData::FromTypedArray(data);
         intptr_t argc_tag = NativeEntryData::GetArgcTag(data);
         const intptr_t num_arguments =
             NativeArguments::ArgcBits::decode(argc_tag);
+
+        if (payload->trampoline == NULL) {
+          ASSERT(payload->native_function == NULL);
+          payload->trampoline = &NativeEntry::BootstrapNativeCallWrapper;
+          payload->native_function =
+              reinterpret_cast<NativeFunction>(&NativeEntry::LinkNativeCall);
+        }
 
         *++SP = null_value;  // Result slot.
 
@@ -2213,9 +2307,10 @@ RawObject* Interpreter::Call(RawFunction* function,
         RawObject** return_slot = SP;
         Exit(thread, FP, SP, pc);
         NativeArguments args(thread, argc_tag, incoming_args, return_slot);
-        INVOKE_NATIVE(trampoline,
-                      reinterpret_cast<Dart_NativeFunction>(function),
-                      reinterpret_cast<Dart_NativeArguments>(&args));
+        INVOKE_NATIVE(
+            payload->trampoline,
+            reinterpret_cast<Dart_NativeFunction>(payload->native_function),
+            reinterpret_cast<Dart_NativeArguments>(&args));
 
         *(SP - num_arguments) = *return_slot;
         SP -= num_arguments;
@@ -2331,7 +2426,7 @@ RawObject* Interpreter::Call(RawFunction* function,
     RawContext* instance = reinterpret_cast<RawContext*>(SP[-1]);
     RawObject* value = reinterpret_cast<RawContext*>(SP[0]);
     SP -= 2;  // Drop instance and value.
-
+    ASSERT(rD < static_cast<uint32_t>(instance->ptr()->num_variables_));
     instance->StorePointer(
         reinterpret_cast<RawObject**>(instance->ptr()) + offset_in_words, value,
         thread);
@@ -2371,6 +2466,7 @@ RawObject* Interpreter::Call(RawFunction* function,
     const uword offset_in_words =
         static_cast<uword>(Context::variable_offset(rD) / kWordSize);
     RawContext* instance = static_cast<RawContext*>(SP[0]);
+    ASSERT(rD < static_cast<uint32_t>(instance->ptr()->num_variables_));
     SP[0] = reinterpret_cast<RawObject**>(instance->ptr())[offset_in_words];
     DISPATCH();
   }
@@ -2598,6 +2694,203 @@ RawObject* Interpreter::Call(RawFunction* function,
   }
 
   {
+    BYTECODE(EqualsNull, 0);
+    SP[0] = (SP[0] == null_value) ? true_value : false_value;
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(NegateInt, 0);
+    UNBOX_INT64(value, SP[0], Symbols::UnaryMinus());
+    int64_t result = Utils::SubWithWrapAround(0, value);
+    BOX_INT64_RESULT(result);
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(AddInt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::Plus());
+    UNBOX_INT64(b, SP[1], Symbols::Plus());
+    int64_t result = Utils::AddWithWrapAround(a, b);
+    BOX_INT64_RESULT(result);
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(SubInt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::Minus());
+    UNBOX_INT64(b, SP[1], Symbols::Minus());
+    int64_t result = Utils::SubWithWrapAround(a, b);
+    BOX_INT64_RESULT(result);
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(MulInt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::Star());
+    UNBOX_INT64(b, SP[1], Symbols::Star());
+    int64_t result = Utils::MulWithWrapAround(a, b);
+    BOX_INT64_RESULT(result);
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(TruncDivInt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::TruncDivOperator());
+    UNBOX_INT64(b, SP[1], Symbols::TruncDivOperator());
+    if (UNLIKELY(b == 0)) {
+      goto ThrowIntegerDivisionByZeroException;
+    }
+    int64_t result;
+    if (UNLIKELY((a == Mint::kMinValue) && (b == -1))) {
+      result = Mint::kMinValue;
+    } else {
+      result = a / b;
+    }
+    BOX_INT64_RESULT(result);
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(ModInt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::Percent());
+    UNBOX_INT64(b, SP[1], Symbols::Percent());
+    if (UNLIKELY(b == 0)) {
+      goto ThrowIntegerDivisionByZeroException;
+    }
+    int64_t result;
+    if (UNLIKELY((a == Mint::kMinValue) && (b == -1))) {
+      result = 0;
+    } else {
+      result = a % b;
+      if (result < 0) {
+        if (b < 0) {
+          result -= b;
+        } else {
+          result += b;
+        }
+      }
+    }
+    BOX_INT64_RESULT(result);
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(BitAndInt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::Ampersand());
+    UNBOX_INT64(b, SP[1], Symbols::Ampersand());
+    int64_t result = a & b;
+    BOX_INT64_RESULT(result);
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(BitOrInt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::BitOr());
+    UNBOX_INT64(b, SP[1], Symbols::BitOr());
+    int64_t result = a | b;
+    BOX_INT64_RESULT(result);
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(BitXorInt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::Caret());
+    UNBOX_INT64(b, SP[1], Symbols::Caret());
+    int64_t result = a ^ b;
+    BOX_INT64_RESULT(result);
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(ShlInt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::LeftShiftOperator());
+    UNBOX_INT64(b, SP[1], Symbols::LeftShiftOperator());
+    if (b < 0) {
+      SP[0] = SP[1];
+      goto ThrowArgumentError;
+    }
+    int64_t result = Utils::ShiftLeftWithTruncation(a, b);
+    BOX_INT64_RESULT(result);
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(ShrInt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::RightShiftOperator());
+    UNBOX_INT64(b, SP[1], Symbols::RightShiftOperator());
+    if (b < 0) {
+      SP[0] = SP[1];
+      goto ThrowArgumentError;
+    }
+    int64_t result = a >> Utils::Minimum<int64_t>(b, Mint::kBits);
+    BOX_INT64_RESULT(result);
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(CompareIntEq, 0);
+    SP -= 1;
+    if (SP[0] == SP[1]) {
+      SP[0] = true_value;
+    } else if (!SP[0]->IsHeapObject() || !SP[1]->IsHeapObject() ||
+               (SP[0] == null_value) || (SP[1] == null_value)) {
+      SP[0] = false_value;
+    } else {
+      int64_t a = Integer::GetInt64Value(RAW_CAST(Integer, SP[0]));
+      int64_t b = Integer::GetInt64Value(RAW_CAST(Integer, SP[1]));
+      SP[0] = (a == b) ? true_value : false_value;
+    }
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(CompareIntGt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::RAngleBracket());
+    UNBOX_INT64(b, SP[1], Symbols::RAngleBracket());
+    SP[0] = (a > b) ? true_value : false_value;
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(CompareIntLt, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::LAngleBracket());
+    UNBOX_INT64(b, SP[1], Symbols::LAngleBracket());
+    SP[0] = (a < b) ? true_value : false_value;
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(CompareIntGe, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::GreaterEqualOperator());
+    UNBOX_INT64(b, SP[1], Symbols::GreaterEqualOperator());
+    SP[0] = (a >= b) ? true_value : false_value;
+    DISPATCH();
+  }
+
+  {
+    BYTECODE(CompareIntLe, 0);
+    SP -= 1;
+    UNBOX_INT64(a, SP[0], Symbols::LessEqualOperator());
+    UNBOX_INT64(b, SP[1], Symbols::LessEqualOperator());
+    SP[0] = (a <= b) ? true_value : false_value;
+    DISPATCH();
+  }
+
+  {
     BYTECODE(Trap, 0);
     UNIMPLEMENTED();
     DISPATCH();
@@ -2664,6 +2957,35 @@ RawObject* Interpreter::Call(RawFunction* function,
     }
 
     DISPATCH();
+  }
+
+  {
+  ThrowNullError:
+    // SP[0] contains selector.
+    SP[1] = 0;  // Unused space for result.
+    Exit(thread, FP, SP + 2, pc);
+    NativeArguments args(thread, 1, SP, SP + 1);
+    INVOKE_RUNTIME(DRT_NullErrorWithSelector, args);
+    UNREACHABLE();
+  }
+
+  {
+  ThrowIntegerDivisionByZeroException:
+    SP[0] = 0;  // Unused space for result.
+    Exit(thread, FP, SP + 1, pc);
+    NativeArguments args(thread, 0, SP, SP);
+    INVOKE_RUNTIME(DRT_IntegerDivisionByZeroException, args);
+    UNREACHABLE();
+  }
+
+  {
+  ThrowArgumentError:
+    // SP[0] contains value.
+    SP[1] = 0;  // Unused space for result.
+    Exit(thread, FP, SP + 2, pc);
+    NativeArguments args(thread, 1, SP, SP + 1);
+    INVOKE_RUNTIME(DRT_ArgumentError, args);
+    UNREACHABLE();
   }
 
   // Single dispatch point used by exception handling macros.

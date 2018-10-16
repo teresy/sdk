@@ -1,8 +1,6 @@
-// Copyright (c) 2014, the Dart project authors.  Please see the AUTHORS file
+// Copyright (c) 2014, the Dart project authors. Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-
-library analyzer.test.generated.static_warning_code_test;
 
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/error/error.dart';
@@ -1411,6 +1409,61 @@ void main() {
     assertErrors(source, [StaticWarningCode.USE_OF_VOID_RESULT]);
   }
 
+  test_generalizedVoid_interpolateVoidValueError() async {
+    Source source = addSource(r'''
+void main() {
+  void x;
+  "$x";
+}
+''');
+    await computeAnalysisResult(source);
+    assertErrors(source, [StaticWarningCode.USE_OF_VOID_RESULT]);
+  }
+
+  test_generalizedVoid_orVoidLhsError() async {
+    Source source = addSource(r'''
+void main() {
+  void x;
+  x || true;
+}
+''');
+    await computeAnalysisResult(source);
+    assertErrors(source, [StaticWarningCode.USE_OF_VOID_RESULT]);
+  }
+
+  test_generalizedVoid_orVoidRhsError() async {
+    Source source = addSource(r'''
+void main() {
+  void x;
+  false || x;
+}
+''');
+    await computeAnalysisResult(source);
+    assertErrors(source, [StaticWarningCode.USE_OF_VOID_RESULT]);
+  }
+
+  test_generalizedVoid_andVoidLhsError() async {
+    Source source = addSource(r'''
+void main() {
+  void x;
+  x && true;
+}
+''');
+    await computeAnalysisResult(source);
+    assertErrors(source, [StaticWarningCode.USE_OF_VOID_RESULT]);
+  }
+
+  test_generalizedVoid_andVoidRhsError() async {
+    Source source = addSource(r'''
+void main() {
+  void x;
+  true && x;
+}
+''');
+    await computeAnalysisResult(source);
+    assertErrors(source, [StaticWarningCode.USE_OF_VOID_RESULT]);
+  }
+
   test_generalizedVoid_unaryNegativeVoidValueError() async {
     Source source = addSource(r'''
 void main() {
@@ -1818,6 +1871,46 @@ void main() {
 ''');
     await computeAnalysisResult(source);
     assertNoErrors(source);
+  }
+
+  test_generalizedVoid_yieldStarVoid_asyncStar() async {
+    Source source = addSource(r'''
+main(void x) async* {
+  yield* x;
+}
+''');
+    await computeAnalysisResult(source);
+    assertErrors(source, [StaticWarningCode.USE_OF_VOID_RESULT]);
+  }
+
+  test_generalizedVoid_yieldStarVoid_syncStar() async {
+    Source source = addSource(r'''
+main(void x) sync* {
+  yield* x;
+}
+''');
+    await computeAnalysisResult(source);
+    assertErrors(source, [StaticWarningCode.USE_OF_VOID_RESULT]);
+  }
+
+  test_generalizedVoid_yieldVoid_asyncStar() async {
+    Source source = addSource(r'''
+main(void x) async* {
+  yield x;
+}
+''');
+    await computeAnalysisResult(source);
+    assertErrors(source, [StaticWarningCode.USE_OF_VOID_RESULT]);
+  }
+
+  test_generalizedVoid_yieldVoid_syncStar() async {
+    Source source = addSource(r'''
+main(void x) sync* {
+  yield x;
+}
+''');
+    await computeAnalysisResult(source);
+    assertErrors(source, [StaticWarningCode.USE_OF_VOID_RESULT]);
   }
 
   test_importDuplicatedLibraryNamed() async {
@@ -2517,46 +2610,6 @@ class B implements I<int>, J<String> {
     Source source = addSource("var v = <String, String> {'a' : 2};");
     await computeAnalysisResult(source);
     assertErrors(source, [StaticWarningCode.MAP_VALUE_TYPE_NOT_ASSIGNABLE]);
-    verify([source]);
-  }
-
-  test_mismatchedAccessorTypes_class() async {
-    Source source = addSource(r'''
-class A {
-  int get g { return 0; }
-  set g(String v) {}
-}''');
-    await computeAnalysisResult(source);
-    assertErrors(
-        source, [StaticWarningCode.MISMATCHED_GETTER_AND_SETTER_TYPES]);
-    verify([source]);
-  }
-
-  test_mismatchedAccessorTypes_getterAndSuperSetter() async {
-    Source source = addSource(r'''
-class A {
-  int get g { return 0; }
-}
-class B extends A {
-  set g(String v) {}
-}''');
-    await computeAnalysisResult(source);
-    assertErrors(source,
-        [StaticWarningCode.MISMATCHED_GETTER_AND_SETTER_TYPES_FROM_SUPERTYPE]);
-    verify([source]);
-  }
-
-  test_mismatchedAccessorTypes_setterAndSuperGetter() async {
-    Source source = addSource(r'''
-class A {
-  set g(int v) {}
-}
-class B extends A {
-  String get g { return ''; }
-}''');
-    await computeAnalysisResult(source);
-    assertErrors(source,
-        [StaticWarningCode.MISMATCHED_GETTER_AND_SETTER_TYPES_FROM_SUPERTYPE]);
     verify([source]);
   }
 

@@ -6,7 +6,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:args/args.dart' show ArgParser, ArgResults;
-import 'package:front_end/src/api_prototype/front_end.dart';
+import 'package:front_end/src/api_unstable/vm.dart';
 import 'package:kernel/binary/ast_to_binary.dart';
 import 'package:kernel/src/tool/batch_util.dart' as batch_util;
 import 'package:kernel/target/targets.dart' show TargetFlags;
@@ -26,7 +26,6 @@ final ArgParser _argParser = new ArgParser(allowTrailingOptions: true)
       help:
           'Produce kernel file for AOT compilation (enables global transformations).',
       defaultsTo: false)
-  ..addFlag('strong-mode', help: 'Enable strong mode', defaultsTo: true)
   ..addFlag('sync-async',
       help: 'Start `async` functions synchronously', defaultsTo: true)
   ..addFlag('embed-sources',
@@ -79,9 +78,7 @@ Future<int> compile(List<String> arguments) async {
   final String filename = options.rest.single;
   final String kernelBinaryFilename = options['output'] ?? "$filename.dill";
   final String packages = options['packages'];
-  final bool strongMode = options['strong-mode'];
   final bool aot = options['aot'];
-  final bool syncAsync = options['sync-async'];
   final bool tfa = options['tfa'];
   final bool genBytecode = options['gen-bytecode'];
   final bool dropAST = options['drop-ast'];
@@ -97,16 +94,16 @@ Future<int> compile(List<String> arguments) async {
   final errorDetector = new ErrorDetector(previousErrorHandler: errorPrinter);
 
   final CompilerOptions compilerOptions = new CompilerOptions()
-    ..strongMode = strongMode
-    ..target = new VmTarget(
-        new TargetFlags(strongMode: strongMode, syncAsync: syncAsync))
+    ..target = new VmTarget(new TargetFlags(syncAsync: true))
     ..linkedDependencies = <Uri>[
       Uri.base.resolveUri(new Uri.file(platformKernel))
     ]
     ..packagesFileUri =
         packages != null ? Uri.base.resolveUri(new Uri.file(packages)) : null
-    ..reportMessages = true
-    ..onProblem = errorDetector
+    ..onDiagnostic = (DiagnosticMessage m) {
+      printDiagnosticMessage(m, stderr.writeln);
+      errorDetector(m);
+    }
     ..embedSourceText = options['embed-sources'];
 
   final inputUri = new Uri.file(filename);

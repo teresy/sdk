@@ -401,12 +401,12 @@ abstract class FunctionTypeImpl extends TypeImpl implements FunctionType {
    * Initialize a newly created function type to be declared by the given
    * [element].
    *
-   * If [typeArguments] are provided, they are used to instantiate the typedef.
+   * Note: this constructor mishandles generics.
+   * See https://github.com/dart-lang/sdk/issues/34657.
    */
-  factory FunctionTypeImpl.forTypedef(FunctionTypeAliasElement element,
-      {List<DartType> typeArguments}) {
-    return new _FunctionTypeImplLazy._(element, element?.name, null,
-        typeArguments, null, null, typeArguments != null);
+  factory FunctionTypeImpl.forTypedef(FunctionTypeAliasElement element) {
+    return new _FunctionTypeImplLazy._(
+        element, element?.name, null, null, null, null, false);
   }
 
   /**
@@ -790,8 +790,7 @@ abstract class FunctionTypeImpl extends TypeImpl implements FunctionType {
         this,
         type,
         (DartType t, DartType s) =>
-            (t as TypeImpl).isMoreSpecificThan(s, withDynamic),
-        new StrongTypeSystemImpl(null).instantiateToBounds);
+            (t as TypeImpl).isMoreSpecificThan(s, withDynamic));
   }
 
   @override
@@ -800,8 +799,7 @@ abstract class FunctionTypeImpl extends TypeImpl implements FunctionType {
     return FunctionTypeImpl.relate(
         typeSystem.instantiateToBounds(this),
         typeSystem.instantiateToBounds(type),
-        (DartType t, DartType s) => t.isAssignableTo(s),
-        typeSystem.instantiateToBounds);
+        (DartType t, DartType s) => t.isAssignableTo(s));
   }
 
   @override
@@ -935,11 +933,8 @@ abstract class FunctionTypeImpl extends TypeImpl implements FunctionType {
    * If [boundsRelation] is omitted, uses [returnRelation]. This is for
    * backwards compatibility, and convenience for Dart 1 type system methods.
    */
-  static bool relate(
-      FunctionType t,
-      DartType other,
+  static bool relate(FunctionType t, DartType other,
       bool returnRelation(DartType t, DartType s),
-      DartType instantiateToBounds(DartType t),
       {bool parameterRelation(ParameterElement t, ParameterElement s),
       bool boundsRelation(DartType bound2, DartType bound1,
           TypeParameterElement formal2, TypeParameterElement formal1)}) {
@@ -1443,7 +1438,6 @@ class InterfaceTypeImpl extends TypeImpl implements InterfaceType {
       try {
         _typeArguments = _typeArgumentsComputer();
       } on RecursiveInstantiateToBounds {
-        _hasTypeParameterReferenceInBound = true;
         _typeArguments = new List<DartType>.filled(
             element.typeParameters.length,
             element.context.typeProvider.dynamicType);
@@ -1704,6 +1698,14 @@ class InterfaceTypeImpl extends TypeImpl implements InterfaceType {
         if ((mixinType as InterfaceTypeImpl)
             .isMoreSpecificThan(type, withDynamic, visitedElements)) {
           return true;
+        }
+      }
+      if (element.isMixin) {
+        for (InterfaceType constraint in superclassConstraints) {
+          if ((constraint as InterfaceTypeImpl)
+              .isMoreSpecificThan(type, withDynamic, visitedElements)) {
+            return true;
+          }
         }
       }
       // If a type I includes an instance method named `call`, and the type of
@@ -2529,11 +2531,6 @@ abstract class TypeImpl implements DartType {
   final String name;
 
   /**
-   * The cached value for [hasTypeParameterReferenceInBound].
-   */
-  bool _hasTypeParameterReferenceInBound;
-
-  /**
    * Initialize a newly created type to be declared by the given [element] and
    * to have the given [name].
    */
@@ -2544,46 +2541,6 @@ abstract class TypeImpl implements DartType {
 
   @override
   Element get element => _element;
-
-  /**
-   * Return `true` if the type is parameterized and has a type parameter with
-   * the bound that references a type parameter.
-   */
-  bool get hasTypeParameterReferenceInBound {
-    if (_hasTypeParameterReferenceInBound == null) {
-      bool hasTypeParameterReference(DartType type) {
-        if (type == this) {
-          // Cycle detection -- and cycles should be considered unboundable.
-          return true;
-        } else if (type is TypeImpl &&
-            type._hasTypeParameterReferenceInBound == true) {
-          return true;
-        } else if (type is TypeParameterType) {
-          return true;
-        } else if (type is FunctionType) {
-          return (type as TypeImpl).hasTypeParameterReferenceInBound;
-        } else if (type is ParameterizedType) {
-          return type.typeArguments.any(hasTypeParameterReference);
-        } else {
-          return false;
-        }
-      }
-
-      Element element = this.element;
-      if (element is FunctionTypedElement) {
-        _hasTypeParameterReferenceInBound = element.parameters.any(
-                (parameter) => hasTypeParameterReference(parameter.type)) ||
-            (element.returnType != null &&
-                hasTypeParameterReference(element.returnType));
-      } else if (element is TypeParameterizedElement) {
-        _hasTypeParameterReferenceInBound = element.typeParameters
-            .any((parameter) => hasTypeParameterReference(parameter.bound));
-      } else {
-        _hasTypeParameterReferenceInBound = false;
-      }
-    }
-    return _hasTypeParameterReferenceInBound;
-  }
 
   @override
   bool get isBottom => false;
@@ -3431,7 +3388,12 @@ class _FunctionTypeImplLazy extends FunctionTypeImpl {
           "argumentTypes.length (${argumentTypes.length}) != parameterTypes.length (${parameterTypes.length})");
     }
     Element element = this.element;
-    if (prune != null && prune.contains(element)) {
+    Element forCircularity = this.element;
+    if (element is GenericFunctionTypeElement &&
+        element.enclosingElement is FunctionTypeAliasElement) {
+      forCircularity = element.enclosingElement;
+    }
+    if (prune != null && prune.contains(forCircularity)) {
       // Circularity found.  Prune the type declaration.
       return new CircularFunctionTypeImpl();
     }

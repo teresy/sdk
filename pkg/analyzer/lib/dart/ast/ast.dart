@@ -1,4 +1,4 @@
-// Copyright (c) 2014, the Dart project authors.  Please see the AUTHORS file
+// Copyright (c) 2014, the Dart project authors. Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
@@ -34,8 +34,6 @@
  * the elements that they refer to and every expression in the AST will have a
  * type associated with it.
  */
-library analyzer.dart.ast.ast;
-
 import 'package:analyzer/dart/ast/syntactic_entity.dart';
 import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/dart/element/element.dart';
@@ -874,6 +872,17 @@ abstract class BinaryExpression extends Expression
    * [expression].
    */
   void set rightOperand(Expression expression);
+
+  /**
+   * The function type of the invocation, or `null` if the AST structure has
+   * not been resolved, or if the invocation could not be resolved.
+   */
+  FunctionType get staticInvokeType;
+
+  /**
+   * Sets the function type of the invocation.
+   */
+  void set staticInvokeType(FunctionType value);
 }
 
 /**
@@ -3728,18 +3737,6 @@ abstract class FunctionTypedFormalParameter extends NormalFormalParameter {
   void set parameters(FormalParameterList parameters);
 
   /**
-   * Return the question mark marking this as a nullable type, or `null` if
-   * the type is non-nullable.
-   */
-  Token get question;
-
-  /**
-   * Return the question mark marking this as a nullable type to the given
-   * [question].
-   */
-  void set question(Token question);
-
-  /**
    * Return the return type of the function, or `null` if the function does not
    * have a return type.
    */
@@ -5284,18 +5281,6 @@ abstract class NamedType extends TypeAnnotation {
    * Set the name of the type to the given [identifier].
    */
   void set name(Identifier identifier);
-
-  /**
-   * Return the question mark marking this as a nullable type, or `null` if
-   * the type is non-nullable.
-   */
-  Token get question;
-
-  /**
-   * Return the question mark marking this as a nullable type to the given
-   * [question].
-   */
-  void set question(Token question);
 
   /**
    * Set the type being named to the given [type].

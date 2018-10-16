@@ -1,8 +1,6 @@
-// Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
+// Copyright (c) 2016, the Dart project authors. Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-
-library analyzer.test.generated.non_hint_code_test;
 
 import 'package:analyzer/error/error.dart';
 import 'package:analyzer/src/error/codes.dart';
@@ -44,6 +42,42 @@ Future<Object> f() async {}
 ''');
     await computeAnalysisResult(source);
     assertErrors(source, [HintCode.MISSING_RETURN]);
+    verify([source]);
+  }
+
+  test_deadCode_afterForEachWithBreakLabel() async {
+    Source source = addSource('''
+f() {
+  named: {
+    for (var x in [1]) {
+      if (x == null)
+        break named;
+    }
+    return;
+  }
+  print('not dead');
+}
+''');
+    await computeAnalysisResult(source);
+    assertNoErrors(source);
+    verify([source]);
+  }
+
+  test_deadCode_afterForWithBreakLabel() async {
+    Source source = addSource('''
+f() {
+  named: {
+    for (int i = 0; i < 7; i++) {
+      if (i == null)
+        break named;
+    }
+    return;
+  }
+  print('not dead');
+}
+''');
+    await computeAnalysisResult(source);
+    assertNoErrors(source);
     verify([source]);
   }
 
@@ -230,42 +264,6 @@ f() {
   }
   int a = 1;
 }''');
-    await computeAnalysisResult(source);
-    assertNoErrors(source);
-    verify([source]);
-  }
-
-  test_deadCode_afterForEachWithBreakLabel() async {
-    Source source = addSource('''
-f() {
-  named: {
-    for (var x in [1]) {
-      if (x == null)
-        break named;
-    }
-    return;
-  }
-  print('not dead');
-}
-''');
-    await computeAnalysisResult(source);
-    assertNoErrors(source);
-    verify([source]);
-  }
-
-  test_deadCode_afterForWithBreakLabel() async {
-    Source source = addSource('''
-f() {
-  named: {
-    for (int i = 0; i < 7; i++) {
-      if (i == null)
-        break named;
-    }
-    return;
-  }
-  print('not dead');
-}
-''');
     await computeAnalysisResult(source);
     assertNoErrors(source);
     verify([source]);
@@ -732,6 +730,26 @@ class B implements A {
   @override
   int m() => 1;
 }''');
+    await computeAnalysisResult(source);
+    assertNoErrors(source);
+    verify([source]);
+  }
+
+  test_overrideOnNonOverridingMethod_inInterfaces() async {
+    Source source = addSource(r'''
+abstract class I {
+  void foo(int _);
+}
+
+abstract class J {
+  void foo(String _);
+}
+
+class C implements I, J {
+  @override
+  void foo(Object _) {}
+}
+''');
     await computeAnalysisResult(source);
     assertNoErrors(source);
     verify([source]);

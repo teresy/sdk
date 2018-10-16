@@ -1,4 +1,4 @@
-// Copyright (c) 2017, the Dart project authors.  Please see the AUTHORS file
+// Copyright (c) 2017, the Dart project authors. Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
@@ -464,7 +464,7 @@ class _OpTypeAstVisitor extends GeneralizingAstVisitor {
     if (identical(entity, node.name)) {
       TypeName type = node.type;
       if (type != null) {
-        SimpleIdentifier prefix = type.name;
+        Identifier prefix = type.name;
         if (prefix != null) {
           optype.includeConstructorSuggestions = true;
           optype.isPrefixed = true;
@@ -784,9 +784,9 @@ class _OpTypeAstVisitor extends GeneralizingAstVisitor {
           List<ParameterElement> parameters = element.parameters;
           ParameterElement parameterElement = parameters.firstWhere((e) {
             if (e is DefaultFieldFormalParameterElementImpl) {
-              return e.field?.name == node.name.label.name;
+              return e.field?.name == node.name.label?.name;
             }
-            return e.isNamed && e.name == node.name.label.name;
+            return e.isNamed && e.name == node.name.label?.name;
           }, orElse: () => null);
           // Suggest tear-offs.
           if (parameterElement?.type is FunctionType) {

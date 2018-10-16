@@ -367,7 +367,8 @@ Future<Context> createContext(
 
   /// The actual location of the dill file.
   final Uri sdkSummaryFile =
-      computePlatformBinariesLocation().resolve("vm_platform.dill");
+      computePlatformBinariesLocation(forceBuildDir: true)
+          .resolve("vm_platform.dill");
 
   final MemoryFileSystem fs = new MemoryFileSystem(base);
 
@@ -378,8 +379,7 @@ Future<Context> createContext(
   final List<CompilationMessage> errors = <CompilationMessage>[];
 
   final CompilerOptions optionBuilder = new CompilerOptions()
-    ..strongMode = true
-    ..target = new VmTarget(new TargetFlags(strongMode: true))
+    ..target = new VmTarget(new TargetFlags())
     ..reportMessages = true
     ..verbose = true
     ..fileSystem = fs

@@ -831,6 +831,17 @@ class SourceLoader<L> extends Loader<L> {
     ticker.logMs("Checked overrides");
   }
 
+  void checkBounds() {
+    if (!target.strongMode) return;
+
+    builders.forEach((Uri uri, LibraryBuilder library) {
+      if (library is SourceLibraryBuilder) {
+        library.checkBoundsInOutline(typeInferenceEngine.typeSchemaEnvironment);
+      }
+    });
+    ticker.logMs("Checked type arguments of supers against the bounds");
+  }
+
   void checkOverrides(List<SourceClassBuilder> sourceClasses) {
     assert(hierarchy != null);
     for (SourceClassBuilder builder in sourceClasses) {
@@ -847,7 +858,8 @@ class SourceLoader<L> extends Loader<L> {
     assert(hierarchy != null);
     for (SourceClassBuilder builder in sourceClasses) {
       if (builder.library.loader == this) {
-        builder.checkAbstractMembers(coreTypes, hierarchy);
+        builder.checkAbstractMembers(
+            coreTypes, hierarchy, typeInferenceEngine.typeSchemaEnvironment);
       }
     }
     ticker.logMs("Checked abstract members");
@@ -877,6 +889,18 @@ class SourceLoader<L> extends Loader<L> {
     }
     hierarchy.applyMemberChanges(changedClasses, findDescendants: true);
     ticker.logMs("Added noSuchMethod forwarders");
+  }
+
+  void checkMixinApplications(List<SourceClassBuilder> sourceClasses) {
+    for (SourceClassBuilder builder in sourceClasses) {
+      if (builder.library.loader == this) {
+        Class mixedInClass = builder.cls.mixedInClass;
+        if (mixedInClass != null && mixedInClass.isMixinDeclaration) {
+          builder.checkMixinApplication(hierarchy);
+        }
+      }
+    }
+    ticker.logMs("Checked mixin declaration applications");
   }
 
   void createTypeInferenceEngine() {

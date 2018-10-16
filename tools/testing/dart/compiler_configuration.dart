@@ -35,9 +35,13 @@ abstract class CompilerConfiguration {
   final TestConfiguration _configuration;
 
   bool get _isDebug => _configuration.mode.isDebug;
+
   bool get _isChecked => _configuration.isChecked;
+
   bool get _isHostChecked => _configuration.isHostChecked;
+
   bool get _useSdk => _configuration.useSdk;
+
   bool get _useEnableAsserts => _configuration.useEnableAsserts;
 
   bool get previewDart2 => !_configuration.noPreviewDart2;
@@ -578,7 +582,9 @@ class PrecompilerCompilerConfiguration extends CompilerConfiguration
   final bool previewDart2;
 
   bool get _isAndroid => _configuration.system == System.android;
+
   bool get _isArm => _configuration.architecture == Architecture.arm;
+
   bool get _isArm64 => _configuration.architecture == Architecture.arm64;
 
   bool get _isAot => true;
@@ -651,21 +657,21 @@ class PrecompilerCompilerConfiguration extends CompilerConfiguration
     String exec;
     if (_isAndroid) {
       if (_isArm) {
-        exec = "$buildDir/clang_x86/dart_bootstrap";
+        exec = "$buildDir/clang_x86/gen_snapshot";
       } else if (_configuration.architecture == Architecture.arm64) {
-        exec = "$buildDir/clang_x64/dart_bootstrap";
+        exec = "$buildDir/clang_x64/gen_snapshot";
       }
     } else {
-      exec = "$buildDir/dart_bootstrap";
+      exec = "$buildDir/gen_snapshot";
     }
 
     final args = <String>[];
-    args.add("--snapshot-kind=app-aot");
     if (_configuration.useBlobs) {
-      args.add("--snapshot=$tempDir/out.aotsnapshot");
-      args.add("--use-blobs");
+      args.add("--snapshot-kind=app-aot-blobs");
+      args.add("--blobs_container_filename=$tempDir/out.aotsnapshot");
     } else {
-      args.add("--snapshot=$tempDir/out.S");
+      args.add("--snapshot-kind=app-aot-assembly");
+      args.add("--assembly=$tempDir/out.S");
     }
 
     if (_isAndroid && _isArm) {
@@ -777,7 +783,11 @@ class PrecompilerCompilerConfiguration extends CompilerConfiguration
   }
 
   List<String> computeCompilerArguments(
-      vmOptions, sharedOptions, dart2jsOptions, ddcOptions, originalArguments) {
+      List<String> vmOptions,
+      List<String> sharedOptions,
+      List<String> dart2jsOptions,
+      List<String> ddcOptions,
+      List<String> originalArguments) {
     List<String> args = [];
     if (_isChecked) {
       args.add('--enable_asserts');
@@ -1033,9 +1043,13 @@ class SpecParserCompilerConfiguration extends CompilerConfiguration {
 
 abstract class VMKernelCompilerMixin {
   TestConfiguration get _configuration;
+
   bool get _useSdk;
+
   bool get _isAot;
+
   bool get _isChecked;
+
   bool get _useEnableAsserts;
 
   String get executableScriptSuffix;
@@ -1061,21 +1075,21 @@ abstract class VMKernelCompilerMixin {
 
     final args = [
       _isAot ? '--aot' : '--no-aot',
-      '--strong-mode',
-      _configuration.noPreviewDart2 ? '--no-sync-async' : '--sync-async',
       '--platform=$vmPlatform',
       '-o',
       dillFile,
     ];
 
     args.add(arguments.where((name) => name.endsWith('.dart')).single);
-    args.addAll(arguments.where((name) => name.startsWith('-D')));
+    args.addAll(arguments.where(
+        (name) => name.startsWith('-D') || name.startsWith('--packages=')));
     if (_isChecked || _useEnableAsserts) {
       args.add('--enable_asserts');
     }
 
     if (_configuration.useKernelBytecode) {
       args.add('--gen-bytecode');
+      args.add('--drop-ast');
     }
 
     return Command.vmKernelCompilation(dillFile, true, bootstrapDependencies(),
@@ -1135,8 +1149,8 @@ class FastaCompilerConfiguration extends CompilerConfiguration {
     var outputFileName = output.toFilePath();
 
     var compilerArguments = <String>[];
-    if (!_isLegacy) {
-      compilerArguments.add("--strong-mode");
+    if (_isLegacy) {
+      compilerArguments.add("--legacy-mode");
     }
 
     compilerArguments.addAll(
@@ -1162,10 +1176,15 @@ class FastaCompilerConfiguration extends CompilerConfiguration {
       List<String> dart2jsOptions,
       List<String> ddcOptions,
       List<String> args) {
-    var arguments = <String>[];
-    for (var argument in args) {
-      if (argument != "--ignore-unrecognized-flags") {
-        arguments.add(argument);
+    List<String> arguments = new List<String>.from(sharedOptions);
+    for (String argument in args) {
+      if (argument == "--ignore-unrecognized-flags") continue;
+      arguments.add(argument);
+      if (!argument.startsWith("-")) {
+        // Some tests pass arguments to the Dart program; that is, arguments
+        // after the name of the test file. Such arguments have nothing to do
+        // with the compiler and should be ignored.
+        break;
       }
     }
     return arguments;

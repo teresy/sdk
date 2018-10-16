@@ -20,6 +20,7 @@ import 'package:kernel/ast.dart'
         Member,
         Name,
         Procedure,
+        RedirectingFactoryConstructor,
         ReturnStatement,
         VoidType,
         MethodInvocation,
@@ -50,6 +51,7 @@ import '../fasta_codes.dart'
     show
         LocatedMessage,
         Message,
+        messageGenericFunctionTypeUsedAsActualTypeArgument,
         messageImplementsFutureOr,
         messagePatchClassOrigin,
         messagePatchClassTypeVariablesMismatch,
@@ -58,10 +60,18 @@ import '../fasta_codes.dart'
         noLength,
         templateFactoryRedirecteeHasTooFewPositionalParameters,
         templateFactoryRedirecteeInvalidReturnType,
+        templateGenericFunctionTypeInferredAsActualTypeArgument,
         templateImplementsRepeated,
         templateImplementsSuperClass,
+        templateImplicitMixinOverrideContext,
+        templateInterfaceCheckContext,
+        templateIncorrectTypeArgument,
+        templateIncorrectTypeArgumentInSupertype,
+        templateIncorrectTypeArgumentInSupertypeInferred,
         templateMissingImplementationCause,
         templateMissingImplementationNotAbstract,
+        templateMixinApplicationIncompatibleSupertype,
+        templateNamedMixinOverrideContext,
         templateOverriddenMethodCause,
         templateOverrideFewerNamedArguments,
         templateOverrideFewerPositionalArguments,
@@ -156,6 +166,9 @@ abstract class KernelClassBuilder
           new List<DartType>.filled(typeVariables.length, null, growable: true);
       for (int i = 0; i < result.length; ++i) {
         result[i] = typeVariables[i].defaultType.build(library);
+      }
+      if (library is KernelLibraryBuilder) {
+        library.inferredTypes.addAll(result);
       }
       return result;
     }
@@ -266,6 +279,122 @@ abstract class KernelClassBuilder
     }
   }
 
+  void checkBoundsInSupertype(
+      Supertype supertype, TypeEnvironment typeEnvironment) {
+    KernelLibraryBuilder library = this.library;
+
+    List<Object> boundViolations = typeEnvironment.findBoundViolations(
+        new InterfaceType(supertype.classNode, supertype.typeArguments),
+        allowSuperBounded: false,
+        typedefInstantiations: library.typedefInstantiations);
+    if (boundViolations != null) {
+      for (int i = 0; i < boundViolations.length; i += 3) {
+        DartType argument = boundViolations[i];
+        TypeParameter variable = boundViolations[i + 1];
+        DartType enclosingType = boundViolations[i + 2];
+
+        Message message;
+        bool inferred = library.inferredTypes.contains(argument);
+        if (argument is FunctionType && argument.typeParameters.length > 0) {
+          if (inferred) {
+            message = templateGenericFunctionTypeInferredAsActualTypeArgument
+                .withArguments(argument);
+          } else {
+            message = messageGenericFunctionTypeUsedAsActualTypeArgument;
+          }
+          variable = null;
+        } else {
+          if (inferred) {
+            message =
+                templateIncorrectTypeArgumentInSupertypeInferred.withArguments(
+                    argument,
+                    typeEnvironment.getGenericTypeName(enclosingType),
+                    supertype.classNode.name,
+                    name);
+          } else {
+            message = templateIncorrectTypeArgumentInSupertype.withArguments(
+                argument,
+                typeEnvironment.getGenericTypeName(enclosingType),
+                supertype.classNode.name,
+                name);
+          }
+        }
+
+        library.reportBoundViolation(message, charOffset, variable);
+      }
+    }
+  }
+
+  void checkBoundsInOutline(TypeEnvironment typeEnvironment) {
+    KernelLibraryBuilder library = this.library;
+
+    // Check in bounds of own type variables.
+    for (TypeParameter parameter in cls.typeParameters) {
+      List<Object> violations = typeEnvironment.findBoundViolations(
+          parameter.bound,
+          allowSuperBounded: false,
+          typedefInstantiations: library.typedefInstantiations);
+      if (violations != null) {
+        for (int i = 0; i < violations.length; i += 3) {
+          DartType argument = violations[i];
+          TypeParameter variable = violations[i + 1];
+          DartType enclosingType = violations[i + 2];
+          if (library.inferredTypes.contains(argument)) {
+            // Inference in type expressions in the supertypes boils down to
+            // instantiate-to-bound which shouldn't produce anything that breaks
+            // the bounds after the non-simplicity checks are done.  So, any
+            // violation here is the result of non-simple bounds, and the error
+            // is reported elsewhere.
+            continue;
+          }
+
+          Message message;
+          if (argument is FunctionType && argument.typeParameters.length > 0) {
+            message = messageGenericFunctionTypeUsedAsActualTypeArgument;
+            variable = null;
+          } else {
+            message = templateIncorrectTypeArgument.withArguments(
+                argument, typeEnvironment.getGenericTypeName(enclosingType));
+          }
+
+          library.reportBoundViolation(message, parameter.fileOffset, variable);
+        }
+      }
+    }
+
+    // Check in supers.
+    if (cls.supertype != null) {
+      checkBoundsInSupertype(cls.supertype, typeEnvironment);
+    }
+    if (cls.mixedInType != null) {
+      checkBoundsInSupertype(cls.mixedInType, typeEnvironment);
+    }
+    if (cls.implementedTypes != null) {
+      for (Supertype supertype in cls.implementedTypes) {
+        checkBoundsInSupertype(supertype, typeEnvironment);
+      }
+    }
+
+    // Check in members.
+    for (Field field in cls.fields) {
+      library.checkBoundsInField(field, typeEnvironment);
+    }
+    for (Procedure procedure in cls.procedures) {
+      library.checkBoundsInFunctionNode(procedure.function, typeEnvironment);
+    }
+    for (Constructor constructor in cls.constructors) {
+      library.checkBoundsInFunctionNode(constructor.function, typeEnvironment);
+    }
+    for (RedirectingFactoryConstructor redirecting
+        in cls.redirectingFactoryConstructors) {
+      library.checkBoundsInFunctionNodeParts(
+          typeEnvironment, redirecting.fileOffset,
+          typeParameters: redirecting.typeParameters,
+          positionalParameters: redirecting.positionalParameters,
+          namedParameters: redirecting.namedParameters);
+    }
+  }
+
   @override
   int resolveConstructors(LibraryBuilder library) {
     int count = super.resolveConstructors(library);
@@ -362,84 +491,100 @@ abstract class KernelClassBuilder
         .add(new StaticGet(constructor.target)..parent = literal);
   }
 
-  void checkOverrides(
-      ClassHierarchy hierarchy, TypeEnvironment typeEnvironment) {
-    handleSeenCovariant(
-        Member declaredMember,
-        Member interfaceMember,
-        bool isSetter,
-        callback(
-            Member declaredMember, Member interfaceMember, bool isSetter)) {
-      // When a parameter is covariant we have to check that we also
-      // override the same member in all parents.
-      for (Supertype supertype in interfaceMember.enclosingClass.supers) {
-        Member m = hierarchy.getInterfaceMember(
-            supertype.classNode, interfaceMember.name,
-            setter: isSetter);
-        if (m != null) {
-          callback(declaredMember, m, isSetter);
+  void handleSeenCovariant(
+      ClassHierarchy hierarchy,
+      Member declaredMember,
+      Member interfaceMember,
+      bool isSetter,
+      callback(Member declaredMember, Member interfaceMember, bool isSetter)) {
+    // When a parameter is covariant we have to check that we also
+    // override the same member in all parents.
+    for (Supertype supertype in interfaceMember.enclosingClass.supers) {
+      Member m = hierarchy.getInterfaceMember(
+          supertype.classNode, interfaceMember.name,
+          setter: isSetter);
+      if (m != null) {
+        callback(declaredMember, m, isSetter);
+      }
+    }
+  }
+
+  void checkOverride(
+      ClassHierarchy hierarchy,
+      TypeEnvironment typeEnvironment,
+      Member declaredMember,
+      Member interfaceMember,
+      bool isSetter,
+      callback(Member declaredMember, Member interfaceMember, bool isSetter),
+      {bool isInterfaceCheck = false}) {
+    if (declaredMember == interfaceMember) {
+      return;
+    }
+    if (declaredMember is Constructor || interfaceMember is Constructor) {
+      unimplemented(
+          "Constructor in override check.", declaredMember.fileOffset, fileUri);
+    }
+    if (declaredMember is Procedure && interfaceMember is Procedure) {
+      if (declaredMember.kind == ProcedureKind.Method &&
+          interfaceMember.kind == ProcedureKind.Method) {
+        bool seenCovariant = checkMethodOverride(hierarchy, typeEnvironment,
+            declaredMember, interfaceMember, isInterfaceCheck);
+        if (seenCovariant) {
+          handleSeenCovariant(
+              hierarchy, declaredMember, interfaceMember, isSetter, callback);
+        }
+      }
+      if (declaredMember.kind == ProcedureKind.Getter &&
+          interfaceMember.kind == ProcedureKind.Getter) {
+        checkGetterOverride(hierarchy, typeEnvironment, declaredMember,
+            interfaceMember, isInterfaceCheck);
+      }
+      if (declaredMember.kind == ProcedureKind.Setter &&
+          interfaceMember.kind == ProcedureKind.Setter) {
+        bool seenCovariant = checkSetterOverride(hierarchy, typeEnvironment,
+            declaredMember, interfaceMember, isInterfaceCheck);
+        if (seenCovariant) {
+          handleSeenCovariant(
+              hierarchy, declaredMember, interfaceMember, isSetter, callback);
+        }
+      }
+    } else {
+      bool declaredMemberHasGetter = declaredMember is Field ||
+          declaredMember is Procedure && declaredMember.isGetter;
+      bool interfaceMemberHasGetter = interfaceMember is Field ||
+          interfaceMember is Procedure && interfaceMember.isGetter;
+      bool declaredMemberHasSetter = declaredMember is Field ||
+          declaredMember is Procedure && declaredMember.isSetter;
+      bool interfaceMemberHasSetter = interfaceMember is Field ||
+          interfaceMember is Procedure && interfaceMember.isSetter;
+      if (declaredMemberHasGetter && interfaceMemberHasGetter) {
+        checkGetterOverride(hierarchy, typeEnvironment, declaredMember,
+            interfaceMember, isInterfaceCheck);
+      } else if (declaredMemberHasSetter && interfaceMemberHasSetter) {
+        bool seenCovariant = checkSetterOverride(hierarchy, typeEnvironment,
+            declaredMember, interfaceMember, isInterfaceCheck);
+        if (seenCovariant) {
+          handleSeenCovariant(
+              hierarchy, declaredMember, interfaceMember, isSetter, callback);
         }
       }
     }
+    // TODO(ahe): Handle other cases: accessors, operators, and fields.
+  }
 
-    overridePairCallback(
+  void checkOverrides(
+      ClassHierarchy hierarchy, TypeEnvironment typeEnvironment) {
+    void overridePairCallback(
         Member declaredMember, Member interfaceMember, bool isSetter) {
-      if (declaredMember is Constructor || interfaceMember is Constructor) {
-        unimplemented("Constructor in override check.",
-            declaredMember.fileOffset, fileUri);
-      }
-      if (declaredMember is Procedure && interfaceMember is Procedure) {
-        if (declaredMember.kind == ProcedureKind.Method &&
-            interfaceMember.kind == ProcedureKind.Method) {
-          bool seenCovariant = checkMethodOverride(
-              hierarchy, typeEnvironment, declaredMember, interfaceMember);
-          if (seenCovariant) {
-            handleSeenCovariant(declaredMember, interfaceMember, isSetter,
-                overridePairCallback);
-          }
-        }
-        if (declaredMember.kind == ProcedureKind.Getter &&
-            interfaceMember.kind == ProcedureKind.Getter) {
-          checkGetterOverride(
-              hierarchy, typeEnvironment, declaredMember, interfaceMember);
-        }
-        if (declaredMember.kind == ProcedureKind.Setter &&
-            interfaceMember.kind == ProcedureKind.Setter) {
-          bool seenCovariant = checkSetterOverride(
-              hierarchy, typeEnvironment, declaredMember, interfaceMember);
-          if (seenCovariant) {
-            handleSeenCovariant(declaredMember, interfaceMember, isSetter,
-                overridePairCallback);
-          }
-        }
-      } else {
-        bool declaredMemberHasGetter = declaredMember is Field ||
-            declaredMember is Procedure && declaredMember.isGetter;
-        bool interfaceMemberHasGetter = interfaceMember is Field ||
-            interfaceMember is Procedure && interfaceMember.isGetter;
-        bool declaredMemberHasSetter = declaredMember is Field ||
-            declaredMember is Procedure && declaredMember.isSetter;
-        bool interfaceMemberHasSetter = interfaceMember is Field ||
-            interfaceMember is Procedure && interfaceMember.isSetter;
-        if (declaredMemberHasGetter && interfaceMemberHasGetter) {
-          checkGetterOverride(
-              hierarchy, typeEnvironment, declaredMember, interfaceMember);
-        } else if (declaredMemberHasSetter && interfaceMemberHasSetter) {
-          bool seenCovariant = checkSetterOverride(
-              hierarchy, typeEnvironment, declaredMember, interfaceMember);
-          if (seenCovariant) {
-            handleSeenCovariant(declaredMember, interfaceMember, isSetter,
-                overridePairCallback);
-          }
-        }
-      }
-      // TODO(ahe): Handle other cases: accessors, operators, and fields.
+      checkOverride(hierarchy, typeEnvironment, declaredMember, interfaceMember,
+          isSetter, overridePairCallback);
     }
 
     hierarchy.forEachOverridePair(cls, overridePairCallback);
   }
 
-  void checkAbstractMembers(CoreTypes coreTypes, ClassHierarchy hierarchy) {
+  void checkAbstractMembers(CoreTypes coreTypes, ClassHierarchy hierarchy,
+      TypeEnvironment typeEnvironment) {
     if (isAbstract) {
       // Unimplemented members allowed
       return;
@@ -458,57 +603,11 @@ abstract class KernelClassBuilder
       return true;
     }
 
-    bool isValidImplementation(Member interfaceMember, Member dispatchTarget,
-        {bool setters}) {
-      // If they're the exact same it's valid.
-      if (interfaceMember == dispatchTarget) return true;
-
-      if (interfaceMember is Procedure && dispatchTarget is Procedure) {
-        // E.g. getter vs method.
-        if (interfaceMember.kind != dispatchTarget.kind) return false;
-
-        if (dispatchTarget.function.positionalParameters.length <
-                interfaceMember.function.requiredParameterCount ||
-            dispatchTarget.function.positionalParameters.length <
-                interfaceMember.function.positionalParameters.length)
-          return false;
-
-        if (interfaceMember.function.requiredParameterCount <
-            dispatchTarget.function.requiredParameterCount) return false;
-
-        if (dispatchTarget.function.namedParameters.length <
-            interfaceMember.function.namedParameters.length) return false;
-
-        // Two Procedures of the same kind with the same number of parameters.
-        return true;
-      }
-
-      if ((interfaceMember is Field || interfaceMember is Procedure) &&
-          (dispatchTarget is Field || dispatchTarget is Procedure)) {
-        if (setters) {
-          bool interfaceMemberHasSetter =
-              (interfaceMember is Field && interfaceMember.hasSetter) ||
-                  interfaceMember is Procedure && interfaceMember.isSetter;
-          bool dispatchTargetHasSetter =
-              (dispatchTarget is Field && dispatchTarget.hasSetter) ||
-                  dispatchTarget is Procedure && dispatchTarget.isSetter;
-          // Combination of (settable) field and/or (procedure) setter is valid.
-          return interfaceMemberHasSetter && dispatchTargetHasSetter;
-        } else {
-          bool interfaceMemberHasGetter = interfaceMember is Field ||
-              interfaceMember is Procedure && interfaceMember.isGetter;
-          bool dispatchTargetHasGetter = dispatchTarget is Field ||
-              dispatchTarget is Procedure && dispatchTarget.isGetter;
-          // Combination of field and/or (procedure) getter is valid.
-          return interfaceMemberHasGetter && dispatchTargetHasGetter;
-        }
-      }
-
-      return unhandled(
-          "${interfaceMember.runtimeType} and ${dispatchTarget.runtimeType}",
-          "isValidImplementation",
-          interfaceMember.fileOffset,
-          interfaceMember.fileUri);
+    void overridePairCallback(
+        Member declaredMember, Member interfaceMember, bool isSetter) {
+      checkOverride(hierarchy, typeEnvironment, declaredMember, interfaceMember,
+          isSetter, overridePairCallback,
+          isInterfaceCheck: true);
     }
 
     bool hasNoSuchMethod =
@@ -532,13 +631,25 @@ abstract class KernelClassBuilder
               ClassHierarchy.compareMembers(
                       dispatchTargets[targetIndex], interfaceMember) <=
                   0;
-          bool hasProblem = true;
-          if (foundTarget &&
-              isValidImplementation(
-                  interfaceMember, dispatchTargets[targetIndex],
-                  setters: setters)) hasProblem = false;
-          if (hasNoSuchMethod && !foundTarget) hasProblem = false;
-          if (hasProblem) {
+          if (foundTarget) {
+            Member dispatchTarget = dispatchTargets[targetIndex];
+            while (dispatchTarget is Procedure &&
+                !dispatchTarget.isExternal &&
+                dispatchTarget.forwardingStubSuperTarget != null) {
+              dispatchTarget =
+                  (dispatchTarget as Procedure).forwardingStubSuperTarget;
+            }
+            while (interfaceMember is Procedure &&
+                !interfaceMember.isExternal &&
+                interfaceMember.forwardingStubInterfaceTarget != null) {
+              interfaceMember =
+                  (interfaceMember as Procedure).forwardingStubInterfaceTarget;
+            }
+            if (!hierarchy.isSubtypeOf(dispatchTarget.enclosingClass,
+                interfaceMember.enclosingClass)) {
+              overridePairCallback(dispatchTarget, interfaceMember, setters);
+            }
+          } else if (!hasNoSuchMethod) {
             Name name = interfaceMember.name;
             String displayName = name.name + (setters ? "=" : "");
             if (interfaceMember is Procedure &&
@@ -670,10 +781,7 @@ abstract class KernelClassBuilder
   /// class was modified.
   bool addNoSuchMethodForwarders(
       KernelTarget target, ClassHierarchy hierarchy) {
-    if (cls.isAbstract ||
-        !hasUserDefinedNoSuchMethod(cls, hierarchy, target.objectClass)) {
-      return false;
-    }
+    if (cls.isAbstract) return false;
 
     Set<Name> existingForwardersNames = new Set<Name>();
     Set<Name> existingSetterForwardersNames = new Set<Name>();
@@ -682,14 +790,19 @@ abstract class KernelClassBuilder
         leastConcreteSuperclass != null && leastConcreteSuperclass.isAbstract) {
       leastConcreteSuperclass = leastConcreteSuperclass.superclass;
     }
-    if (leastConcreteSuperclass != null &&
-        hasUserDefinedNoSuchMethod(
-            leastConcreteSuperclass, hierarchy, target.objectClass)) {
+    if (leastConcreteSuperclass != null) {
+      bool superHasUserDefinedNoSuchMethod = hasUserDefinedNoSuchMethod(
+          leastConcreteSuperclass, hierarchy, target.objectClass);
       List<Member> concrete =
           hierarchy.getDispatchTargets(leastConcreteSuperclass);
       for (Member member
           in hierarchy.getInterfaceMembers(leastConcreteSuperclass)) {
-        if (ClassHierarchy.findMemberByName(concrete, member.name) == null) {
+        if ((superHasUserDefinedNoSuchMethod ||
+                leastConcreteSuperclass.enclosingLibrary.compareTo(
+                            member.enclosingClass.enclosingLibrary) !=
+                        0 &&
+                    member.name.isPrivate) &&
+            ClassHierarchy.findMemberByName(concrete, member.name) == null) {
           existingForwardersNames.add(member.name);
         }
       }
@@ -711,9 +824,23 @@ abstract class KernelClassBuilder
     List<Member> concrete = hierarchy.getDispatchTargets(cls);
     List<Member> declared = hierarchy.getDeclaredMembers(cls);
 
+    bool clsHasUserDefinedNoSuchMethod =
+        hasUserDefinedNoSuchMethod(cls, hierarchy, target.objectClass);
     bool changed = false;
     for (Member member in hierarchy.getInterfaceMembers(cls)) {
+      // We generate a noSuchMethod forwarder for [member] in [cls] if the
+      // following three conditions are satisfied simultaneously:
+      // 1) There is a user-defined noSuchMethod in [cls] or [member] is private
+      //    and the enclosing library of [member] is different from that of
+      //    [cls].
+      // 2) There is no implementation of [member] in [cls].
+      // 3) The superclass of [cls] has no forwarder for [member].
       if (member is Procedure &&
+          (clsHasUserDefinedNoSuchMethod ||
+              cls.enclosingLibrary
+                          .compareTo(member.enclosingClass.enclosingLibrary) !=
+                      0 &&
+                  member.name.isPrivate) &&
           ClassHierarchy.findMemberByName(concrete, member.name) == null &&
           !existingForwardersNames.contains(member.name)) {
         if (ClassHierarchy.findMemberByName(declared, member.name) != null) {
@@ -725,7 +852,9 @@ abstract class KernelClassBuilder
         }
         existingForwardersNames.add(member.name);
         changed = true;
+        continue;
       }
+
       if (member is Field &&
           ClassHierarchy.findMemberByName(concrete, member.name) == null &&
           !existingForwardersNames.contains(member.name)) {
@@ -783,28 +912,32 @@ abstract class KernelClassBuilder
       Member declaredMember,
       Member interfaceMember,
       FunctionNode declaredFunction,
-      FunctionNode interfaceFunction) {
-    Substitution interfaceSubstitution;
+      FunctionNode interfaceFunction,
+      bool isInterfaceCheck) {
+    Substitution interfaceSubstitution = Substitution.empty;
     if (interfaceMember.enclosingClass.typeParameters.isNotEmpty) {
       interfaceSubstitution = Substitution.fromSupertype(
           hierarchy.getClassAsInstanceOf(cls, interfaceMember.enclosingClass));
     }
     if (declaredFunction?.typeParameters?.length !=
         interfaceFunction?.typeParameters?.length) {
-      addProblem(
+      library.addProblem(
           templateOverrideTypeVariablesMismatch.withArguments(
-              "$name::${declaredMember.name.name}",
+              "${declaredMember.enclosingClass.name}::"
+              "${declaredMember.name.name}",
               "${interfaceMember.enclosingClass.name}::"
               "${interfaceMember.name.name}"),
           declaredMember.fileOffset,
           noLength,
+          declaredMember.fileUri,
           context: [
-            templateOverriddenMethodCause
-                .withArguments(interfaceMember.name.name)
-                .withLocation(_getMemberUri(interfaceMember),
-                    interfaceMember.fileOffset, noLength)
-          ]);
-    } else if (library.loader.target.backendTarget.strongMode &&
+                templateOverriddenMethodCause
+                    .withArguments(interfaceMember.name.name)
+                    .withLocation(_getMemberUri(interfaceMember),
+                        interfaceMember.fileOffset, noLength)
+              ] +
+              inheritedContext(isInterfaceCheck, declaredMember));
+    } else if (!library.loader.target.backendTarget.legacyMode &&
         declaredFunction?.typeParameters != null) {
       Map<TypeParameter, DartType> substitutionMap =
           <TypeParameter, DartType>{};
@@ -825,43 +958,60 @@ abstract class KernelClassBuilder
                 interfaceSubstitution.substituteType(interfaceBound);
           }
           if (declaredBound != substitution.substituteType(interfaceBound)) {
-            addProblem(
+            library.addProblem(
                 templateOverrideTypeVariablesMismatch.withArguments(
-                    "$name::${declaredMember.name.name}",
+                    "${declaredMember.enclosingClass.name}::"
+                    "${declaredMember.name.name}",
                     "${interfaceMember.enclosingClass.name}::"
                     "${interfaceMember.name.name}"),
                 declaredMember.fileOffset,
                 noLength,
+                declaredMember.fileUri,
                 context: [
-                  templateOverriddenMethodCause
-                      .withArguments(interfaceMember.name.name)
-                      .withLocation(_getMemberUri(interfaceMember),
-                          interfaceMember.fileOffset, noLength)
-                ]);
+                      templateOverriddenMethodCause
+                          .withArguments(interfaceMember.name.name)
+                          .withLocation(_getMemberUri(interfaceMember),
+                              interfaceMember.fileOffset, noLength)
+                    ] +
+                    inheritedContext(isInterfaceCheck, declaredMember));
           }
         }
       }
-      interfaceSubstitution = interfaceSubstitution == null
-          ? substitution
-          : Substitution.combine(interfaceSubstitution, substitution);
+      interfaceSubstitution =
+          Substitution.combine(interfaceSubstitution, substitution);
     }
     return interfaceSubstitution;
+  }
+
+  Substitution _computeDeclaredSubstitution(
+      ClassHierarchy hierarchy, Member declaredMember) {
+    Substitution declaredSubstitution = Substitution.empty;
+    if (declaredMember.enclosingClass.typeParameters.isNotEmpty) {
+      declaredSubstitution = Substitution.fromSupertype(
+          hierarchy.getClassAsInstanceOf(cls, declaredMember.enclosingClass));
+    }
+    return declaredSubstitution;
   }
 
   bool _checkTypes(
       TypeEnvironment typeEnvironment,
       Substitution interfaceSubstitution,
+      Substitution declaredSubstitution,
       Member declaredMember,
       Member interfaceMember,
       DartType declaredType,
       DartType interfaceType,
       bool isCovariant,
       VariableDeclaration declaredParameter,
+      bool isInterfaceCheck,
       {bool asIfDeclaredParameter = false}) {
-    if (!library.loader.target.backendTarget.strongMode) return false;
+    if (library.loader.target.backendTarget.legacyMode) return false;
 
     if (interfaceSubstitution != null) {
       interfaceType = interfaceSubstitution.substituteType(interfaceType);
+    }
+    if (declaredSubstitution != null) {
+      declaredType = declaredSubstitution.substituteType(declaredType);
     }
 
     bool inParameter = declaredParameter != null || asIfDeclaredParameter;
@@ -877,7 +1027,8 @@ abstract class KernelClassBuilder
       // Report an error.
       // TODO(ahe): The double-colon notation shouldn't be used in error
       // messages.
-      String declaredMemberName = '$name::${declaredMember.name.name}';
+      String declaredMemberName =
+          '${declaredMember.enclosingClass.name}::${declaredMember.name.name}';
       Message message;
       int fileOffset;
       if (declaredParameter == null) {
@@ -892,12 +1043,14 @@ abstract class KernelClassBuilder
             interfaceType);
         fileOffset = declaredParameter.fileOffset;
       }
-      library.addProblem(message, fileOffset, noLength, fileUri, context: [
-        templateOverriddenMethodCause
-            .withArguments(interfaceMember.name.name)
-            .withLocation(_getMemberUri(interfaceMember),
-                interfaceMember.fileOffset, noLength)
-      ]);
+      library.addProblem(message, fileOffset, noLength, declaredMember.fileUri,
+          context: [
+                templateOverriddenMethodCause
+                    .withArguments(interfaceMember.name.name)
+                    .withLocation(_getMemberUri(interfaceMember),
+                        interfaceMember.fileOffset, noLength)
+              ] +
+              inheritedContext(isInterfaceCheck, declaredMember));
       return true;
     }
     return false;
@@ -909,12 +1062,8 @@ abstract class KernelClassBuilder
       ClassHierarchy hierarchy,
       TypeEnvironment typeEnvironment,
       Procedure declaredMember,
-      Procedure interfaceMember) {
-    if (declaredMember.enclosingClass != cls) {
-      // TODO(ahe): Include these checks as well, but the message needs to
-      // explain that [declaredMember] is inherited.
-      return false;
-    }
+      Procedure interfaceMember,
+      bool isInterfaceCheck) {
     assert(declaredMember.kind == ProcedureKind.Method);
     assert(interfaceMember.kind == ProcedureKind.Method);
     bool seenCovariant = false;
@@ -926,65 +1075,78 @@ abstract class KernelClassBuilder
         declaredMember,
         interfaceMember,
         declaredFunction,
-        interfaceFunction);
+        interfaceFunction,
+        isInterfaceCheck);
+
+    Substitution declaredSubstitution =
+        _computeDeclaredSubstitution(hierarchy, declaredMember);
 
     _checkTypes(
         typeEnvironment,
         interfaceSubstitution,
+        declaredSubstitution,
         declaredMember,
         interfaceMember,
         declaredFunction.returnType,
         interfaceFunction.returnType,
         false,
-        null);
+        null,
+        isInterfaceCheck);
     if (declaredFunction.positionalParameters.length <
-            interfaceFunction.requiredParameterCount ||
-        declaredFunction.positionalParameters.length <
-            interfaceFunction.positionalParameters.length) {
-      addProblem(
+        interfaceFunction.positionalParameters.length) {
+      library.addProblem(
           templateOverrideFewerPositionalArguments.withArguments(
-              "$name::${declaredMember.name.name}",
+              "${declaredMember.enclosingClass.name}::"
+              "${declaredMember.name.name}",
               "${interfaceMember.enclosingClass.name}::"
               "${interfaceMember.name.name}"),
           declaredMember.fileOffset,
           noLength,
+          declaredMember.fileUri,
           context: [
-            templateOverriddenMethodCause
-                .withArguments(interfaceMember.name.name)
-                .withLocation(interfaceMember.fileUri,
-                    interfaceMember.fileOffset, noLength)
-          ]);
+                templateOverriddenMethodCause
+                    .withArguments(interfaceMember.name.name)
+                    .withLocation(interfaceMember.fileUri,
+                        interfaceMember.fileOffset, noLength)
+              ] +
+              inheritedContext(isInterfaceCheck, declaredMember));
     }
     if (interfaceFunction.requiredParameterCount <
         declaredFunction.requiredParameterCount) {
-      addProblem(
+      library.addProblem(
           templateOverrideMoreRequiredArguments.withArguments(
-              "$name::${declaredMember.name.name}",
+              "${declaredMember.enclosingClass.name}::"
+              "${declaredMember.name.name}",
               "${interfaceMember.enclosingClass.name}::"
               "${interfaceMember.name.name}"),
           declaredMember.fileOffset,
           noLength,
+          declaredMember.fileUri,
           context: [
-            templateOverriddenMethodCause
-                .withArguments(interfaceMember.name.name)
-                .withLocation(interfaceMember.fileUri,
-                    interfaceMember.fileOffset, noLength)
-          ]);
+                templateOverriddenMethodCause
+                    .withArguments(interfaceMember.name.name)
+                    .withLocation(interfaceMember.fileUri,
+                        interfaceMember.fileOffset, noLength)
+              ] +
+              inheritedContext(isInterfaceCheck, declaredMember));
     }
     for (int i = 0;
         i < declaredFunction.positionalParameters.length &&
             i < interfaceFunction.positionalParameters.length;
         i++) {
       var declaredParameter = declaredFunction.positionalParameters[i];
+      var interfaceParameter = interfaceFunction.positionalParameters[i];
       _checkTypes(
           typeEnvironment,
           interfaceSubstitution,
+          declaredSubstitution,
           declaredMember,
           interfaceMember,
           declaredParameter.type,
           interfaceFunction.positionalParameters[i].type,
-          declaredParameter.isCovariant,
-          declaredParameter);
+          declaredParameter.isCovariant || interfaceParameter.isCovariant,
+          declaredParameter,
+          isInterfaceCheck);
       if (declaredParameter.isCovariant) seenCovariant = true;
     }
     if (declaredFunction.namedParameters.isEmpty &&
@@ -993,19 +1155,22 @@ abstract class KernelClassBuilder
     }
     if (declaredFunction.namedParameters.length <
         interfaceFunction.namedParameters.length) {
-      addProblem(
+      library.addProblem(
           templateOverrideFewerNamedArguments.withArguments(
-              "$name::${declaredMember.name.name}",
+              "${declaredMember.enclosingClass.name}::"
+              "${declaredMember.name.name}",
               "${interfaceMember.enclosingClass.name}::"
               "${interfaceMember.name.name}"),
           declaredMember.fileOffset,
           noLength,
+          declaredMember.fileUri,
           context: [
-            templateOverriddenMethodCause
-                .withArguments(interfaceMember.name.name)
-                .withLocation(interfaceMember.fileUri,
-                    interfaceMember.fileOffset, noLength)
-          ]);
+                templateOverriddenMethodCause
+                    .withArguments(interfaceMember.name.name)
+                    .withLocation(interfaceMember.fileUri,
+                        interfaceMember.fileOffset, noLength)
+              ] +
+              inheritedContext(isInterfaceCheck, declaredMember));
     }
     int compareNamedParameters(VariableDeclaration p0, VariableDeclaration p1) {
       return p0.name.compareTo(p1.name);
@@ -1027,20 +1192,23 @@ abstract class KernelClassBuilder
       while (declaredNamedParameters.current.name !=
           interfaceNamedParameters.current.name) {
         if (!declaredNamedParameters.moveNext()) {
-          addProblem(
+          library.addProblem(
               templateOverrideMismatchNamedParameter.withArguments(
-                  "$name::${declaredMember.name.name}",
+                  "${declaredMember.enclosingClass.name}::"
+                  "${declaredMember.name.name}",
                   interfaceNamedParameters.current.name,
                   "${interfaceMember.enclosingClass.name}::"
                   "${interfaceMember.name.name}"),
               declaredMember.fileOffset,
               noLength,
+              declaredMember.fileUri,
               context: [
-                templateOverriddenMethodCause
-                    .withArguments(interfaceMember.name.name)
-                    .withLocation(interfaceMember.fileUri,
-                        interfaceMember.fileOffset, noLength)
-              ]);
+                    templateOverriddenMethodCause
+                        .withArguments(interfaceMember.name.name)
+                        .withLocation(interfaceMember.fileUri,
+                            interfaceMember.fileOffset, noLength)
+                  ] +
+                  inheritedContext(isInterfaceCheck, declaredMember));
           break outer;
         }
       }
@@ -1048,12 +1216,14 @@ abstract class KernelClassBuilder
       _checkTypes(
           typeEnvironment,
           interfaceSubstitution,
+          declaredSubstitution,
           declaredMember,
           interfaceMember,
           declaredParameter.type,
           interfaceNamedParameters.current.type,
           declaredParameter.isCovariant,
-          declaredParameter);
+          declaredParameter,
+          isInterfaceCheck);
       if (declaredParameter.isCovariant) seenCovariant = true;
     }
     return seenCovariant;
@@ -1063,18 +1233,30 @@ abstract class KernelClassBuilder
       ClassHierarchy hierarchy,
       TypeEnvironment typeEnvironment,
       Member declaredMember,
-      Member interfaceMember) {
-    if (declaredMember.enclosingClass != cls) {
-      // TODO(paulberry): Include these checks as well, but the message needs to
-      // explain that [declaredMember] is inherited.
-      return;
-    }
+      Member interfaceMember,
+      bool isInterfaceCheck) {
     Substitution interfaceSubstitution = _computeInterfaceSubstitution(
-        hierarchy, declaredMember, interfaceMember, null, null);
+        hierarchy,
+        declaredMember,
+        interfaceMember,
+        null,
+        null,
+        isInterfaceCheck);
+    Substitution declaredSubstitution =
+        _computeDeclaredSubstitution(hierarchy, declaredMember);
     var declaredType = declaredMember.getterType;
     var interfaceType = interfaceMember.getterType;
-    _checkTypes(typeEnvironment, interfaceSubstitution, declaredMember,
-        interfaceMember, declaredType, interfaceType, false, null);
+    _checkTypes(
+        typeEnvironment,
+        interfaceSubstitution,
+        declaredSubstitution,
+        declaredMember,
+        interfaceMember,
+        declaredType,
+        interfaceType,
+        false,
+        null,
+        isInterfaceCheck);
   }
 
   /// Returns whether a covariant parameter was seen and more methods thus have
@@ -1083,14 +1265,17 @@ abstract class KernelClassBuilder
       ClassHierarchy hierarchy,
       TypeEnvironment typeEnvironment,
       Member declaredMember,
-      Member interfaceMember) {
-    if (declaredMember.enclosingClass != cls) {
-      // TODO(paulberry): Include these checks as well, but the message needs to
-      // explain that [declaredMember] is inherited.
-      return false;
-    }
+      Member interfaceMember,
+      bool isInterfaceCheck) {
     Substitution interfaceSubstitution = _computeInterfaceSubstitution(
-        hierarchy, declaredMember, interfaceMember, null, null);
+        hierarchy,
+        declaredMember,
+        interfaceMember,
+        null,
+        null,
+        isInterfaceCheck);
+    Substitution declaredSubstitution =
+        _computeDeclaredSubstitution(hierarchy, declaredMember);
     var declaredType = declaredMember.setterType;
     var interfaceType = interfaceMember.setterType;
     var declaredParameter =
@@ -1100,20 +1285,78 @@ abstract class KernelClassBuilder
     _checkTypes(
         typeEnvironment,
         interfaceSubstitution,
+        declaredSubstitution,
         declaredMember,
         interfaceMember,
         declaredType,
         interfaceType,
         isCovariant,
         declaredParameter,
+        isInterfaceCheck,
         asIfDeclaredParameter: true);
     return isCovariant;
+  }
+
+  // Extra context on override messages when the overriding member is inherited
+  List<LocatedMessage> inheritedContext(
+      bool isInterfaceCheck, Member declaredMember) {
+    if (declaredMember.enclosingClass == cls) {
+      // Ordinary override
+      return const [];
+    }
+    if (isInterfaceCheck) {
+      // Interface check
+      return [
+        templateInterfaceCheckContext
+            .withArguments(cls.name)
+            .withLocation(cls.fileUri, cls.fileOffset, cls.name.length)
+      ];
+    } else {
+      if (cls.isAnonymousMixin) {
+        // Implicit mixin application class
+        String baseName = cls.superclass.demangledName;
+        String mixinName = cls.mixedInClass.name;
+        int classNameLength = cls.nameAsMixinApplicationSubclass.length;
+        return [
+          templateImplicitMixinOverrideContext
+              .withArguments(mixinName, baseName)
+              .withLocation(cls.fileUri, cls.fileOffset, classNameLength)
+        ];
+      } else {
+        // Named mixin application class
+        return [
+          templateNamedMixinOverrideContext
+              .withArguments(cls.name)
+              .withLocation(cls.fileUri, cls.fileOffset, cls.name.length)
+        ];
+      }
+    }
   }
 
   String get fullNameForErrors {
     return isMixinApplication
         ? "${supertype.fullNameForErrors} with ${mixedInType.fullNameForErrors}"
         : name;
+  }
+
+  void checkMixinApplication(ClassHierarchy hierarchy) {
+    // A mixin declaration can only be applied to a class that implements all
+    // the declaration's superclass constraints.
+    InterfaceType supertype = cls.supertype.asInterfaceType;
+    Substitution substitution = Substitution.fromSupertype(cls.mixedInType);
+    for (Supertype constraint in cls.mixedInClass.superclassConstraints()) {
+      InterfaceType interface =
+          substitution.substituteSupertype(constraint).asInterfaceType;
+      if (hierarchy.getTypeAsInstanceOf(supertype, interface.classNode) !=
+          interface) {
+        library.addProblem(
+            templateMixinApplicationIncompatibleSupertype.withArguments(
+                supertype, interface, cls.mixedInType.asInterfaceType),
+            cls.fileOffset,
+            noLength,
+            cls.fileUri);
+      }
+    }
   }
 
   @override

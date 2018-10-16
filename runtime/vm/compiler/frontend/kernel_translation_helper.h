@@ -59,6 +59,8 @@ class TranslationHelper {
   const Array& constants() { return constants_; }
   void SetConstants(const Array& constants);
 
+  void SetKernelProgramInfo(const KernelProgramInfo& info);
+
   intptr_t StringOffset(StringIndex index) const;
   intptr_t StringSize(StringIndex index) const;
 
@@ -191,6 +193,8 @@ class TranslationHelper {
   ExternalTypedData& metadata_payloads_;
   ExternalTypedData& metadata_mappings_;
   Array& constants_;
+  KernelProgramInfo& info_;
+  Smi& name_index_handle_;
 
   DISALLOW_COPY_AND_ASSIGN(TranslationHelper);
 };
@@ -876,15 +880,10 @@ class InferredTypeMetadataHelper : public MetadataHelper {
 };
 
 struct ProcedureAttributesMetadata {
-  ProcedureAttributesMetadata(bool has_dynamic_invocations = true,
-                              bool has_non_this_uses = true,
-                              bool has_tearoff_uses = true)
-      : has_dynamic_invocations(has_dynamic_invocations),
-        has_non_this_uses(has_non_this_uses),
-        has_tearoff_uses(has_tearoff_uses) {}
-  bool has_dynamic_invocations;
-  bool has_non_this_uses;
-  bool has_tearoff_uses;
+  bool has_dynamic_invocations = true;
+  bool has_this_uses = true;
+  bool has_non_this_uses = true;
+  bool has_tearoff_uses = true;
 };
 
 // Helper class which provides access to direct call metadata.
@@ -1029,7 +1028,7 @@ class KernelReaderHelper {
   intptr_t SourceTableSize();
   intptr_t GetOffsetForSourceInfo(intptr_t index);
   String& SourceTableUriFor(intptr_t index);
-  String& GetSourceFor(intptr_t index);
+  const String& GetSourceFor(intptr_t index);
   RawTypedData* GetLineStartsFor(intptr_t index);
 
   Zone* zone_;

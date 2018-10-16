@@ -1,8 +1,6 @@
-// Copyright (c) 2014, the Dart project authors.  Please see the AUTHORS file
+// Copyright (c) 2014, the Dart project authors. Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-
-library analyzer.test.generated.compile_time_error_code_test;
 
 import 'dart:async';
 
@@ -96,6 +94,13 @@ class CompileTimeErrorCodeTest extends CompileTimeErrorCodeTestBase {
   @failingTest
   test_superInitializerInObject() {
     return super.test_superInitializerInObject();
+  }
+
+  @override
+  @failingTest
+  test_typedef_infiniteParameterBoundCycle() {
+    // Does not work with the task model.
+    return super.test_typedef_infiniteParameterBoundCycle();
   }
 
   @override
@@ -5555,6 +5560,24 @@ const y = x + 1;''');
     verify([source]);
   }
 
+  test_recursiveCompileTimeConstant_fromMapLiteral() async {
+    resourceProvider.newFile(
+      resourceProvider.convertPath('/constants.dart'),
+      r'''
+const int x = y;
+const int y = x;
+''',
+    );
+    Source source = addSource(r'''
+import 'constants.dart';
+final z = {x: 0, y: 1};
+''');
+    await computeAnalysisResult(source);
+    // No errors, because the cycle is not in this source.
+    assertNoErrors(source);
+    verify([source]);
+  }
+
   test_recursiveCompileTimeConstant_initializer_after_toplevel_var() async {
     Source source = addSource('''
 const y = const C();
@@ -5582,6 +5605,28 @@ const x = x;
       assertErrors(source, [
         CompileTimeErrorCode.RECURSIVE_COMPILE_TIME_CONSTANT,
         StrongModeCode.TOP_LEVEL_CYCLE
+      ]);
+    }
+    verify([source]);
+  }
+
+  test_recursiveCompileTimeConstant_singleVariable_fromConstList() async {
+    Source source = addSource(r'''
+const elems = const [
+  const [
+    1, elems, 3,
+  ],
+];
+''');
+    await computeAnalysisResult(source);
+    if (!enableNewAnalysisDriver) {
+      assertErrors(source, [
+        CompileTimeErrorCode.RECURSIVE_COMPILE_TIME_CONSTANT,
+      ]);
+    } else {
+      assertErrors(source, [
+        CompileTimeErrorCode.RECURSIVE_COMPILE_TIME_CONSTANT,
+        StrongModeCode.TOP_LEVEL_CYCLE,
       ]);
     }
     verify([source]);
@@ -6295,6 +6340,18 @@ f() { return const G<B>(); }''');
     verify([source]);
   }
 
+  test_typedef_infiniteParameterBoundCycle() async {
+    Source source = addSource(r'''
+typedef F<X extends F> = F Function();
+''');
+    await computeAnalysisResult(source);
+    assertErrors(source, [
+      CompileTimeErrorCode.TYPE_ALIAS_CANNOT_REFERENCE_ITSELF,
+      StrongModeCode.NOT_INSTANTIATED_BOUND,
+    ]);
+    verify([source]);
+  }
+
   test_undefinedAnnotation_unresolved_identifier() async {
     Source source = addSource(r'''
 @unresolved
@@ -6339,7 +6396,7 @@ f() {
   return const A();
 }''');
     await computeAnalysisResult(source);
-    assertErrors(source, [CompileTimeErrorCode.UNDEFINED_CLASS]);
+    assertErrors(source, [StaticWarningCode.UNDEFINED_CLASS]);
     verify([source]);
   }
 

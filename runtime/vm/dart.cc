@@ -373,10 +373,10 @@ void Dart::WaitForIsolateShutdown() {
   ASSERT(Isolate::isolates_list_head_ == Dart::vm_isolate());
 }
 
-const char* Dart::Cleanup() {
+char* Dart::Cleanup() {
   ASSERT(Isolate::Current() == NULL);
   if (vm_isolate_ == NULL) {
-    return "VM already terminated.";
+    return strdup("VM already terminated.");
   }
 
   if (FLAG_trace_shutdown) {
@@ -718,8 +718,6 @@ const char* Dart::FeaturesString(Isolate* isolate,
     ADD_FLAG(asserts, enable_asserts, FLAG_enable_asserts);
     ADD_FLAG(error_on_bad_type, enable_error_on_bad_type,
              FLAG_error_on_bad_type);
-    ADD_FLAG(error_on_bad_override, enable_error_on_bad_override,
-             FLAG_error_on_bad_override);
     // sync-async and reify_generic_functions also affect deopt_ids.
     buffer.AddString(FLAG_sync_async ? " sync_async" : " no-sync_async");
     buffer.AddString(FLAG_reify_generic_functions
@@ -740,7 +738,12 @@ const char* Dart::FeaturesString(Isolate* isolate,
     buffer.AddString(TargetCPUFeatures::hardfp_supported() ? " hardfp"
                                                            : " softfp");
 #elif defined(TARGET_ARCH_ARM64)
-    buffer.AddString(" arm64");
+#if defined(TARGET_OS_FUCHSIA)
+    // See signal handler cheat in Assembler::EnterFrame.
+    buffer.AddString(" arm64-fuchsia");
+#else
+    buffer.AddString(" arm64-sysv");
+#endif
 #elif defined(TARGET_ARCH_IA32)
     buffer.AddString(" ia32");
 #elif defined(TARGET_ARCH_X64)

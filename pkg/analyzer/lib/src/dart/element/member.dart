@@ -1,8 +1,6 @@
-// Copyright (c) 2014, the Dart project authors.  Please see the AUTHORS file
+// Copyright (c) 2014, the Dart project authors. Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-
-library analyzer.src.dart.element.member;
 
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/constant/value.dart';
@@ -156,6 +154,9 @@ abstract class ExecutableMember extends Member implements ExecutableElement {
 
   @override
   bool get isOperator => baseElement.isOperator;
+
+  @override
+  bool get isSimplyBounded => baseElement.isSimplyBounded;
 
   @override
   bool get isStatic => baseElement.isStatic;

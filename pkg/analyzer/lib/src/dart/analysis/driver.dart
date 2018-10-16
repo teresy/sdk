@@ -17,11 +17,13 @@ import 'package:analyzer/error/listener.dart';
 import 'package:analyzer/exception/exception.dart';
 import 'package:analyzer/file_system/file_system.dart';
 import 'package:analyzer/src/context/context_root.dart';
+import 'package:analyzer/src/dart/analysis/byte_store.dart';
 import 'package:analyzer/src/dart/analysis/file_state.dart';
 import 'package:analyzer/src/dart/analysis/file_tracker.dart';
 import 'package:analyzer/src/dart/analysis/index.dart';
 import 'package:analyzer/src/dart/analysis/library_analyzer.dart';
 import 'package:analyzer/src/dart/analysis/library_context.dart';
+import 'package:analyzer/src/dart/analysis/performance_logger.dart';
 import 'package:analyzer/src/dart/analysis/search.dart';
 import 'package:analyzer/src/dart/analysis/session.dart';
 import 'package:analyzer/src/dart/analysis/status.dart';
@@ -38,12 +40,10 @@ import 'package:analyzer/src/generated/resolver.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/utilities_general.dart';
 import 'package:analyzer/src/lint/registry.dart' as linter;
+import 'package:analyzer/src/summary/api_signature.dart';
 import 'package:analyzer/src/summary/format.dart';
 import 'package:analyzer/src/summary/idl.dart';
 import 'package:analyzer/src/summary/package_bundle_reader.dart';
-import 'package:front_end/src/api_prototype/byte_store.dart';
-import 'package:front_end/src/base/api_signature.dart';
-import 'package:front_end/src/base/performance_logger.dart';
 import 'package:meta/meta.dart';
 
 /**
@@ -93,7 +93,7 @@ class AnalysisDriver implements AnalysisDriverGeneric {
   /**
    * The version of data format, should be incremented on every format change.
    */
-  static const int DATA_VERSION = 71;
+  static const int DATA_VERSION = 72;
 
   /**
    * The number of exception contexts allowed to write. Once this field is
@@ -586,6 +586,10 @@ class AnalysisDriver implements AnalysisDriverGeneric {
    * potentially available is done, so that they are included in [knownFiles].
    */
   Future<void> discoverAvailableFiles() {
+    if (_discoverAvailableFilesTask != null &&
+        _discoverAvailableFilesTask.isCompleted) {
+      return new Future.value();
+    }
     _discoverAvailableFiles();
     _scheduler.notify(this);
     return _discoverAvailableFilesTask.completer.future;
@@ -1278,8 +1282,8 @@ class AnalysisDriver implements AnalysisDriverGeneric {
           libraryContext?.dispose();
         }
       } catch (exception, stackTrace) {
-        String contextKey = _storeExceptionContextDuringAnalysis(
-            path, library, exception, stackTrace);
+        String contextKey =
+            _storeExceptionContext(path, library, exception, stackTrace);
         throw new _ExceptionState(exception, stackTrace, contextKey);
       }
     });
@@ -1347,16 +1351,16 @@ class AnalysisDriver implements AnalysisDriverGeneric {
   void _createFileTracker() {
     _fillSalt();
     _fsState = new FileSystemState(
-        _logger,
-        _byteStore,
-        _contentOverlay,
-        _resourceProvider,
-        sourceFactory,
-        analysisOptions,
-        _unlinkedSalt,
-        _linkedSalt,
-        externalSummaries: _externalSummaries,
-        parseExceptionHandler: _storeExceptionContextDuringParsing);
+      _logger,
+      _byteStore,
+      _contentOverlay,
+      _resourceProvider,
+      sourceFactory,
+      analysisOptions,
+      _unlinkedSalt,
+      _linkedSalt,
+      externalSummaries: _externalSummaries,
+    );
     _fileTracker = new FileTracker(_logger, _fsState, _changeHook);
   }
 
@@ -1569,9 +1573,27 @@ class AnalysisDriver implements AnalysisDriverGeneric {
         .toBuffer();
   }
 
-  String _storeExceptionContext(AnalysisDriverExceptionContextBuilder builder) {
+  String _storeExceptionContext(
+      String path, FileState libraryFile, exception, StackTrace stackTrace) {
+    if (allowedNumberOfContextsToWrite <= 0) {
+      return null;
+    } else {
+      allowedNumberOfContextsToWrite--;
+    }
     try {
-      List<int> bytes = builder.toBuffer();
+      List<AnalysisDriverExceptionFileBuilder> contextFiles = libraryFile
+          .transitiveFiles
+          .map((file) => new AnalysisDriverExceptionFileBuilder(
+              path: file.path, content: file.content))
+          .toList();
+      contextFiles.sort((a, b) => a.path.compareTo(b.path));
+      AnalysisDriverExceptionContextBuilder contextBuilder =
+          new AnalysisDriverExceptionContextBuilder(
+              path: path,
+              exception: exception.toString(),
+              stackTrace: stackTrace.toString(),
+              files: contextFiles);
+      List<int> bytes = contextBuilder.toBuffer();
 
       String _twoDigits(int n) {
         if (n >= 10) return '$n';
@@ -1595,53 +1617,6 @@ class AnalysisDriver implements AnalysisDriverGeneric {
 
       _byteStore.put(key, bytes);
       return key;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  String _storeExceptionContextDuringAnalysis(
-      String path, FileState libraryFile, exception, StackTrace stackTrace) {
-    if (allowedNumberOfContextsToWrite <= 0) {
-      return null;
-    } else {
-      allowedNumberOfContextsToWrite--;
-    }
-    try {
-      List<AnalysisDriverExceptionFileBuilder> contextFiles = libraryFile
-          .transitiveFiles
-          .map((file) => new AnalysisDriverExceptionFileBuilder(
-              path: file.path, content: file.content))
-          .toList();
-      contextFiles.sort((a, b) => a.path.compareTo(b.path));
-      AnalysisDriverExceptionContextBuilder contextBuilder =
-          new AnalysisDriverExceptionContextBuilder(
-              path: path,
-              exception: exception.toString(),
-              stackTrace: stackTrace.toString(),
-              files: contextFiles);
-      return _storeExceptionContext(contextBuilder);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  String _storeExceptionContextDuringParsing(
-      FileState file, exception, StackTrace stackTrace) {
-    if (allowedNumberOfContextsToWrite <= 0) {
-      return null;
-    } else {
-      allowedNumberOfContextsToWrite--;
-    }
-    try {
-      var fileBuilder = new AnalysisDriverExceptionFileBuilder(
-          path: file.path, content: file.content);
-      var contextBuilder = new AnalysisDriverExceptionContextBuilder(
-          path: file.path,
-          exception: exception.toString(),
-          stackTrace: stackTrace.toString(),
-          files: [fileBuilder]);
-      return _storeExceptionContext(contextBuilder);
     } catch (_) {
       return null;
     }
@@ -2213,9 +2188,9 @@ class _DiscoverAvailableFilesTask {
   static const int _MS_WORK_INTERVAL = 5;
 
   final AnalysisDriver driver;
-  final Completer<void> completer = new Completer<void>();
 
   bool isCompleted = false;
+  Completer<void> completer = new Completer<void>();
 
   Iterator<Folder> folderIterator;
   List<String> files = [];
@@ -2273,10 +2248,13 @@ class _DiscoverAvailableFilesTask {
     }
 
     // The task is done, clean up.
-    isCompleted = true;
     folderIterator = null;
     files = null;
+
+    // Complete and clean up.
+    isCompleted = true;
     completer.complete();
+    completer = null;
   }
 
   void _appendFilesRecursively(Folder folder) {

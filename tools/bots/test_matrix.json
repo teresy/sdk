@@ -25,15 +25,10 @@
       "tests/angular/",
       "tests/co19_2/",
       "tests/compiler/",
-      "tests/corelib/",
       "tests/corelib_2/",
       "tests/dart/",
-      "tests/html/",
-      "tests/isolate/",
       "tests/kernel/",
-      "tests/language/",
       "tests/language_2/",
-      "tests/lib/",
       "tests/lib_2/",
       "tests/light_unittest.dart",
       "tests/search/",
@@ -63,15 +58,10 @@
       "tests/angular/",
       "tests/co19_2/",
       "tests/compiler/",
-      "tests/corelib/",
       "tests/corelib_2/",
       "tests/dart/",
-      "tests/html/",
-      "tests/isolate/",
       "tests/kernel/",
-      "tests/language/",
       "tests/language_2/",
-      "tests/lib/",
       "tests/lib_2/",
       "tests/light_unittest.dart",
       "tests/search/",
@@ -101,29 +91,27 @@
       "out/ReleaseSIMDBC64/",
       "out/ReleaseX64/",
       "xcodebuild/DebugIA32/",
+      "xcodebuild/DebugSIMDBC64/",
       "xcodebuild/DebugX64/",
       "xcodebuild/ProductX64/",
       "xcodebuild/ReleaseIA32/",
       "xcodebuild/ReleaseSIMARM64/",
+      "xcodebuild/ReleaseSIMDBC64/",
       "xcodebuild/ReleaseX64/",
       "samples/",
       "samples-dev/",
       "tools/",
+      "third_party/gsutil/",
       "third_party/pkg/",
       "third_party/pkg_tested/",
       "third_party/observatory_pub_packages/packages/",
       "tests/angular/",
-      "tests/co19/",
+      "tests/co19_2/",
       "tests/compiler/",
-      "tests/corelib/",
       "tests/corelib_2/",
       "tests/dart/",
-      "tests/html/",
-      "tests/isolate/",
       "tests/kernel/",
-      "tests/language/",
       "tests/language_2/",
-      "tests/lib/",
       "tests/lib_2/",
       "tests/light_unittest.dart",
       "tests/search/",
@@ -142,7 +130,8 @@
       "pkg/vm/",
       "runtime/",
       "sdk/",
-      ".packages"
+      ".packages",
+      ".vpython"
     ]
   },
   "configurations": {
@@ -180,108 +169,10 @@
         "vm-options": ["-DuseFastaParser=true"],
         "builder-tag": "analyzer_use_fasta"
       }},
-    "vm-legacy-(linux|mac|win)-(debug|release)-(ia32|x64)": {
+    "dartk-asan-linux-release-(ia32|x64)": {
       "options": {
-        "preview-dart-2": false,
-        "builder-tag": "swarming"
-      }},
-    "vm-legacy-checked-(linux|mac|win)-(debug|release)-(ia32|x64)": {
-      "options": {
-        "preview-dart-2": false,
-        "checked": true,
-        "builder-tag": "swarming"
-      }},
-    "vm-legacy-linux-debug-simarm": {
-      "options": {
-        "preview-dart-2": false,
-        "builder-tag": "swarming"
-      }},
-    "vm-legacy-checked-linux-debug-simarm": {
-      "options": {
-        "preview-dart-2": false,
-        "checked": true,
-        "builder-tag": "swarming"
-      }},
-    "vm-legacy-linux-release-(simarm|simarm64)": {
-      "options": {
-        "preview-dart-2": false,
-        "builder-tag": "swarming"
-      }},
-    "vm-legacy-checked-linux-release-(simarm|simarm64)": {
-      "options": {
-        "preview-dart-2": false,
-        "checked": true,
-        "builder-tag": "swarming"
-      }},
-    "vm-legacy-mac-(debug|release)-simdbc64": {
-      "options": {
-        "preview-dart-2": false,
-        "builder-tag": "swarming"
-      }},
-    "vm-legacy-checked-mac-(debug|release)-simdbc64": {
-      "options": {
-        "preview-dart-2": false,
-        "checked": true,
-        "builder-tag": "swarming"
-      }},
-    "vm-legacy-asan-linux-release-x64": {
-      "options": {
-        "preview-dart-2": false,
         "builder-tag": "asan",
         "timeout": 240
-      }},
-    "vm-legacy-checked-asan-linux-release-x64": {
-      "options": {
-        "preview-dart-2": false,
-        "checked": true,
-        "builder-tag": "asan",
-        "timeout": 240
-      }},
-    "vm-legacy-optcounter-linux-release-(ia32|x64)": {
-      "options": {
-        "preview-dart-2": false,
-        "builder-tag": "optimization_counter_threshold",
-        "vm-options": ["--optimization-counter-threshold=5"]
-      }},
-    "vm-legacy-optcounter-checked-linux-release-(ia32|x64)": {
-      "options": {
-        "preview-dart-2": false,
-        "checked": true,
-        "builder-tag": "optimization_counter_threshold",
-        "vm-options": ["--optimization-counter-threshold=5"]
-      }},
-    "vm-legacy-reload-linux-(debug|release)-x64": {
-      "options": {
-        "preview-dart-2": false,
-        "hot-reload": true
-      }},
-    "vm-legacy-reload-checked-linux-(debug|release)-x64": {
-      "options": {
-        "preview-dart-2": false,
-        "checked": true,
-        "hot-reload": true
-      }},
-    "vm-legacy-reload-mac-(debug|release)-simdbc64": {
-      "options": {
-        "preview-dart-2": false,
-        "hot-reload": true
-      }},
-    "vm-legacy-reload-checked-mac-(debug|release)-simdbc64": {
-      "options": {
-        "preview-dart-2": false,
-        "checked": true,
-        "hot-reload": true
-      }},
-    "vm-legacy-reload-rollback-linux-(debug|release)-x64": {
-      "options": {
-        "preview-dart-2": false,
-        "hot-reload-rollback": true
-      }},
-    "vm-legacy-reload-rollback-checked-linux-(debug|release)-x64": {
-      "options": {
-        "preview-dart-2": false,
-        "checked": true,
-        "hot-reload-rollback": true
       }},
     "dart2js-(linux|mac|win)-chrome": {
       "options": {
@@ -374,11 +265,11 @@
       "options": {
         "checked": true
     }},
-    "dartk-win-release-x64": { },
+    "dartk-win-(debug|release)-(ia32|x64)": { },
     "dartk-(linux|mac|win)-product-x64": { },
-    "dartk-linux-(debug|release)-simdbc64": { },
+    "dartk-(linux|mac)-(debug|release)-simdbc64": { },
     "dartk-linux-release-(simarm|simarm64)": { },
-    "dartk-optcounter-linux-release-x64": {
+    "dartk-optcounter-linux-release-(ia32|x64)": {
       "options": {
         "builder-tag": "optimization_counter_threshold",
         "vm-options": ["--optimization-counter-threshold=5"]
@@ -541,47 +432,6 @@
     },
     {
       "builders": [
-        "vm-linux-debug-ia32",
-        "vm-linux-debug-simarm",
-        "vm-linux-debug-x64",
-        "vm-linux-release-ia32",
-        "vm-linux-release-simarm",
-        "vm-linux-release-simarm64",
-        "vm-linux-release-x64",
-        "vm-mac-debug-ia32",
-        "vm-mac-debug-simdbc64",
-        "vm-mac-debug-x64",
-        "vm-mac-release-ia32",
-        "vm-mac-release-simdbc64",
-        "vm-mac-release-x64",
-        "vm-win-debug-ia32",
-        "vm-win-debug-x64",
-        "vm-win-release-ia32",
-        "vm-win-release-x64"
-      ],
-      "meta": {
-        "description": "This configuration is used by the vm debug and vm release builders."
-      },
-      "steps": [
-        {
-          "name": "build dart",
-          "script": "tools/build.py",
-          "arguments": ["runtime"]
-        },
-        {
-          "name": "vm tests",
-          "arguments": [
-            "-nvm-legacy-${system}-${mode}-${arch}"]
-        },
-        {
-          "name": "checked vm tests",
-          "arguments": [
-            "-nvm-legacy-checked-${system}-${mode}-${arch}"]
-        }
-      ]
-    },
-    {
-      "builders": [
         "vm-canary-linux-debug"
       ],
       "meta": {
@@ -633,8 +483,7 @@
         {
           "name": "vm tests",
           "arguments": [
-            "-ndartkp-${system}-${mode}-${arch}",
-            "-v"
+            "-ndartkp-${system}-${mode}-${arch}"
           ],
           "fileset": "vm-kernel",
           "shards": 10
@@ -660,8 +509,7 @@
         {
           "name": "vm tests",
           "arguments": [
-            "-ndartkp-obfuscate-${system}-${mode}-${arch}",
-            "-v"
+            "-ndartkp-obfuscate-${system}-${mode}-${arch}"
           ],
           "fileset": "vm-kernel",
           "shards": 10
@@ -670,35 +518,23 @@
     },
     {
       "builders": [
-        "vm-asan-linux-release-x64"
+        "vm-kernel-asan-linux-release-ia32",
+        "vm-kernel-asan-linux-release-x64"
       ],
       "meta": {
         "description": "This configuration is used by the vm builders with address sanitizing (asan). We have to run gn.py with the DART_USE_ASAN options, which we do by running generate_buildfiles."
       },
       "steps": [
         {
-          "name": "generate build files with ASAN_USE_DART=1",
-          "script": "tools/generate_buildfiles.py",
-          "environment": {"DART_USE_ASAN": 1}
-        },
-        {
           "name": "build dart",
           "script": "tools/build.py",
-          "arguments": ["-v", "runtime"]
+          "arguments": ["runtime"],
+          "environment": {"DART_USE_ASAN": 1}
         },
         {
           "name": "vm tests",
           "arguments": [
-            "-nvm-legacy-asan-linux-release-x64"],
-          "environment": {
-            "ASAN_OPTIONS": "handle_segv=0:detect_stack_use_after_return=0",
-            "ASAN_SYMBOLIZER_PATH": "buildtools/linux-x64/clang/bin/llvm-symbolizer"
-          }
-        },
-        {
-          "name": "checked vm tests",
-          "arguments": [
-            "-nvm-legacy-checked-asan-linux-release-x64"],
+            "-ndartk-asan-linux-release-${arch}"],
           "environment": {
             "ASAN_OPTIONS": "handle_segv=0:detect_stack_use_after_return=0",
             "ASAN_SYMBOLIZER_PATH": "buildtools/linux-x64/clang/bin/llvm-symbolizer"
@@ -708,17 +544,21 @@
     },
     {
       "builders": [
+        "vm-kernel-linux-debug-ia32",
         "vm-kernel-linux-debug-simdbc64",
         "vm-kernel-linux-debug-x64",
-        "vm-kernel-linux-product-x64",
         "vm-kernel-linux-release-simarm",
         "vm-kernel-linux-release-simarm64",
-        "vm-kernel-linux-release-simdbc64",
-        "vm-kernel-linux-release-x64",
+        "vm-kernel-linux-release-ia32",
+        "vm-kernel-mac-debug-simdbc64",
         "vm-kernel-mac-debug-x64",
         "vm-kernel-mac-product-x64",
+        "vm-kernel-mac-release-simdbc64",
         "vm-kernel-mac-release-x64",
+        "vm-kernel-win-debug-ia32",
+        "vm-kernel-win-debug-x64",
         "vm-kernel-win-product-x64",
+        "vm-kernel-win-release-ia32",
         "vm-kernel-win-release-x64"
       ],
       "meta": {
@@ -734,6 +574,39 @@
           "name": "vm tests",
           "arguments": [
             "-ndartk-${system}-${mode}-${arch}"],
+          "fileset": "vm-kernel",
+          "shards": 10
+        }
+      ]
+    },
+    {
+      "builders": [
+        "vm-kernel-linux-product-x64",
+        "vm-kernel-linux-release-simdbc64",
+        "vm-kernel-linux-release-x64"
+      ],
+      "meta": {
+        "description": "This configuration is for the co19_2 kernel builder group."
+      },
+      "steps": [
+        {
+          "name": "build dart",
+          "script": "tools/build.py",
+          "arguments": ["runtime_kernel"]
+        },
+        {
+          "name": "vm tests",
+          "arguments": [
+            "-ndartk-${system}-${mode}-${arch}"],
+          "fileset": "vm-kernel",
+          "shards": 10
+        },
+        {
+          "name": "vm co19 tests",
+          "arguments": [
+            "-ndartk-${system}-${mode}-${arch}",
+            "co19_2"
+          ],
           "fileset": "vm-kernel",
           "shards": 10
         }
@@ -918,34 +791,7 @@
     },
     {
       "builders": [
-        "vm-optcounter-threshold-linux-release-ia32",
-        "vm-optcounter-threshold-linux-release-x64"
-      ],
-      "meta": {
-        "description": "This is the configuration for the optcounter builders, under the vm-misc group. They run the same tests as the ordinary VM builders, but add extra options to the vm."
-      },
-      "steps": [
-        {
-          "name": "build dart",
-          "script": "tools/build.py",
-          "arguments": [
-            "runtime"
-          ]
-        },
-        {
-          "name": "vm tests",
-          "arguments": [
-            "-nvm-legacy-optcounter-linux-release-${arch}"]
-        },
-        {
-          "name": "checked vm tests",
-          "arguments": [
-            "-nvm-legacy-optcounter-checked-linux-release-${arch}"]
-        }
-      ]
-    },
-    {
-      "builders": [
+        "vm-kernel-optcounter-threshold-linux-release-ia32",
         "vm-kernel-optcounter-threshold-linux-release-x64"
       ],
       "meta": {
@@ -962,37 +808,9 @@
         {
           "name": "vm tests",
           "arguments": [
-            "-ndartk-optcounter-linux-release-x64"],
+            "-ndartk-optcounter-linux-release-${arch}"],
           "fileset": "vm-kernel",
           "shards": 10
-        }
-      ]
-    },
-    {
-      "builders": [
-        "vm-reload-linux-debug-x64",
-        "vm-reload-linux-release-x64",
-        "vm-reload-mac-debug-simdbc64",
-        "vm-reload-mac-release-simdbc64"
-      ],
-      "meta": {
-        "description": "This is the configuration for the hot reload builders."
-      },
-      "steps": [
-        {
-          "name": "build dart",
-          "script": "tools/build.py",
-          "arguments": ["runtime"]
-        },
-        {
-          "name": "vm tests",
-          "arguments": [
-            "-nvm-legacy-reload-${system}-${mode}-${arch}"]
-        },
-        {
-          "name": "checked vm tests",
-          "arguments": [
-            "-nvm-legacy-reload-checked-${system}-${mode}-${arch}"]
         }
       ]
     },
@@ -1016,32 +834,6 @@
           "name": "vm tests",
           "arguments": [
             "-ndartk-reload-${system}-${mode}-${arch}"]
-        }
-      ]
-    },
-    {
-      "builders": [
-        "vm-reload-rollback-linux-debug-x64",
-        "vm-reload-rollback-linux-release-x64"
-      ],
-      "meta": {
-        "description": "This is the configuration for reload rollback builders."
-      },
-      "steps": [
-        {
-          "name": "build dart",
-          "script": "tools/build.py",
-          "arguments": ["runtime"]
-        },
-        {
-          "name": "vm tests",
-          "arguments": [
-            "-nvm-legacy-reload-rollback-linux-${mode}-x64"]
-        },
-        {
-          "name": "checked vm tests",
-          "arguments": [
-            "-nvm-legacy-reload-rollback-checked-linux-${mode}-x64"]
         }
       ]
     },
@@ -1108,7 +900,7 @@
             "-ndart2js-hostasserts-linux-ia32-d8",
             "--dart2js-batch"
           ],
-          "exclude_tests": ["observatory_ui", "co19"],
+          "exclude_tests": ["observatory_ui"],
           "shards": 6,
           "fileset": "dart2js_hostasserts"
         },
@@ -1175,7 +967,7 @@
             "--dart2js-batch",
             "--reset-browser-configuration"
           ],
-          "exclude_tests": ["observatory_ui", "co19"],
+          "exclude_tests": ["observatory_ui"],
           "shards": 6,
           "fileset": "dart2js"
         },
@@ -1246,7 +1038,7 @@
             "--dart2js-batch",
             "--reset-browser-configuration"
           ],
-          "exclude_tests": ["observatory_ui", "co19"],
+          "exclude_tests": ["observatory_ui"],
           "shards": 6,
           "fileset": "dart2js"
         },
@@ -1307,7 +1099,7 @@
             "-ndart2js-minified-linux-d8",
             "--dart2js-batch"
           ],
-          "exclude_tests": ["observatory_ui", "co19"],
+          "exclude_tests": ["observatory_ui"],
           "shards": 6,
           "fileset": "dart2js"
         },
@@ -1317,7 +1109,7 @@
             "-ndart2js-minified-faststartup-linux-d8",
             "--dart2js-batch"
           ],
-          "exclude_tests": ["observatory_ui", "co19"],
+          "exclude_tests": ["observatory_ui"],
           "shards": 6,
           "fileset": "dart2js"
         },
@@ -1389,7 +1181,7 @@
             "--dart2js-batch",
             "--reset-browser-configuration"
           ],
-          "exclude_tests": ["observatory_ui", "co19"],
+          "exclude_tests": ["observatory_ui"],
           "shards": 4,
           "fileset": "dart2js"
         },
@@ -1400,7 +1192,7 @@
             "--dart2js-batch",
             "--reset-browser-configuration"
           ],
-          "exclude_tests": ["observatory_ui", "co19"],
+          "exclude_tests": ["observatory_ui"],
           "shards": 4,
           "fileset": "dart2js"
         },
@@ -1874,6 +1666,45 @@
           "name": "try linux-x64 benchmarking",
           "script": "tools/bots/try_benchmarks.sh",
           "arguments": ["linux-x64-benchmark"]
+        }
+      ]
+    },
+    {
+      "builders": ["fuzz-linux"],
+      "meta": {
+        "description": "This configuration is used for fuzz testing."
+      },
+      "steps": [
+        {
+          "name": "build dart (aot and jit)",
+          "script": "tools/build.py",
+          "arguments": [
+            "--mode=debug,release",
+            "--arch=x64,simarm64",
+            "runtime",
+            "dart_precompiled_runtime"
+          ]
+        },
+        {
+          "name": "build dart (jit)",
+          "script": "tools/build.py",
+          "arguments": [
+            "--mode=debug,release",
+            "--arch=ia32,simarm,simdbc,simdbc64",
+            "runtime"
+          ]
+        },
+        {
+          "name": "make a fuzz",
+          "script": "out/ReleaseX64/dart",
+          "arguments": [
+            "runtime/tools/dartfuzz/dartfuzz_test.dart",
+            "--isolates",
+            "8",
+            "--no-show-stats",
+            "--repeat",
+            "125"
+          ]
         }
       ]
     }

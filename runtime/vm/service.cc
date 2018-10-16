@@ -2362,7 +2362,6 @@ static bool Invoke(Thread* thread, JSONStream* js) {
     // We don't use Instance::Cast here because it doesn't allow null.
     Instance& instance = Instance::Handle(zone);
     instance ^= receiver.raw();
-
     const Object& result =
         Object::Handle(zone, instance.Invoke(selector, args, arg_names));
     result.PrintJSON(js, true);
@@ -3937,19 +3936,12 @@ static const MethodParameter* collect_all_garbage_params[] = {
     RUNNABLE_ISOLATE_PARAMETER, NULL,
 };
 
-#if defined(DEBUG)
 static bool CollectAllGarbage(Thread* thread, JSONStream* js) {
   Isolate* isolate = thread->isolate();
-  isolate->heap()->CollectAllGarbage();
+  isolate->heap()->CollectAllGarbage(Heap::kDebugging);
   PrintSuccess(js);
   return true;
 }
-#else
-static bool CollectAllGarbage(Thread* thread, JSONStream* js) {
-  PrintSuccess(js);
-  return true;
-}
-#endif  // defined(DEBUG)
 
 static const MethodParameter* get_heap_map_params[] = {
     RUNNABLE_ISOLATE_PARAMETER, NULL,

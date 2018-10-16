@@ -1,4 +1,4 @@
-// Copyright (c) 2017, the Dart project authors.  Please see the AUTHORS file
+// Copyright (c) 2017, the Dart project authors. Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
@@ -1190,6 +1190,16 @@ class OpTypeTest extends OpTypeTestCommon {
     await assertOpType(constructors: true);
   }
 
+  test_ConstructorName_nameAndPrefix_resolved() async {
+    // SimpleIdentifier  PrefixedIdentifier  TypeName  ConstructorName
+    // InstanceCreationExpression
+    addTestSource('''
+import 'dart:core' as core;
+main() {new core.String.from^CharCodes([]);}
+''');
+    await assertOpType(constructors: true, prefixed: true);
+  }
+
   test_ConstructorName_resolved() async {
     // SimpleIdentifier  PrefixedIdentifier  TypeName  ConstructorName
     // InstanceCreationExpression
@@ -1704,6 +1714,14 @@ class C2 {
     // MethodDeclaration  ClassDeclaration  CompilationUnit
     addTestSource('class C2 {/** */^ zoo(z) { } String name; }');
     await assertOpType(typeNames: true);
+  }
+
+  test_NamedExpression() async {
+    addTestSource('''
+main() { f(3, ^); }
+void f(int a, {int b}) {}
+''');
+    await assertOpType(namedArgs: true);
   }
 
   test_OnClause() async {

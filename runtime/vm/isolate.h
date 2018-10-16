@@ -21,7 +21,6 @@
 #include "vm/random.h"
 #include "vm/tags.h"
 #include "vm/thread.h"
-#include "vm/timer.h"
 #include "vm/token_position.h"
 
 namespace dart {
@@ -31,7 +30,6 @@ class ApiState;
 class BackgroundCompiler;
 class Capability;
 class CodeIndexTable;
-class CompilerStats;
 class Debugger;
 class DeoptContext;
 class ExternalTypedData;
@@ -143,8 +141,6 @@ typedef FixedCache<intptr_t, CatchEntryMovesRefPtr, 16> CatchEntryMovesCache;
   V(NONPRODUCT, asserts, EnableAsserts, enable_asserts, FLAG_enable_asserts)   \
   V(NONPRODUCT, error_on_bad_type, ErrorOnBadType, enable_error_on_bad_type,   \
     FLAG_error_on_bad_type)                                                    \
-  V(NONPRODUCT, error_on_bad_override, ErrorOnBadOverride,                     \
-    enable_error_on_bad_override, FLAG_error_on_bad_override)                  \
   V(NONPRODUCT, use_field_guards, UseFieldGuards, use_field_guards,            \
     FLAG_use_field_guards)                                                     \
   V(NONPRODUCT, use_osr, UseOsr, use_osr, FLAG_use_osr)                        \
@@ -354,6 +350,13 @@ class Isolate : public BaseIsolate {
   }
   Mutex* megamorphic_lookup_mutex() const { return megamorphic_lookup_mutex_; }
 
+  Mutex* kernel_data_lib_cache_mutex() const {
+    return kernel_data_lib_cache_mutex_;
+  }
+  Mutex* kernel_data_class_cache_mutex() const {
+    return kernel_data_class_cache_mutex_;
+  }
+
 #if !defined(PRODUCT)
   Debugger* debugger() const {
     ASSERT(debugger_ != NULL);
@@ -511,11 +514,6 @@ class Isolate : public BaseIsolate {
 #ifndef PRODUCT
   void PrintJSON(JSONStream* stream, bool ref = true);
 #endif
-
-  // Mutator thread is used to aggregate compiler stats.
-  CompilerStats* aggregate_compiler_stats() {
-    return mutator_thread()->compiler_stats();
-  }
 
 #if !defined(PRODUCT)
   VMTagCounters* vm_tag_counters() { return &vm_tag_counters_; }
@@ -984,6 +982,8 @@ class Isolate : public BaseIsolate {
   Mutex* type_canonicalization_mutex_;      // Protects type canonicalization.
   Mutex* constant_canonicalization_mutex_;  // Protects const canonicalization.
   Mutex* megamorphic_lookup_mutex_;  // Protects megamorphic table lookup.
+  Mutex* kernel_data_lib_cache_mutex_;
+  Mutex* kernel_data_class_cache_mutex_;
   MessageHandler* message_handler_;
   IsolateSpawnState* spawn_state_;
   intptr_t defer_finalization_count_;

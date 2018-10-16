@@ -553,14 +553,13 @@ typedef struct {
  * for each part.
  */
 
-#define DART_FLAGS_CURRENT_VERSION (0x00000008)
+#define DART_FLAGS_CURRENT_VERSION (0x00000009)
 
 typedef struct {
   int32_t version;
   bool enable_type_checks;
   bool enable_asserts;
   bool enable_error_on_bad_type;
-  bool enable_error_on_bad_override;
   bool use_field_guards;
   bool use_osr;
   bool obfuscate;
@@ -1023,17 +1022,6 @@ Dart_CreateSnapshot(uint8_t** vm_snapshot_data_buffer,
                     intptr_t* isolate_snapshot_data_size);
 
 /**
- * Returns whether the buffer contains a snapshot created by
- * Dart_Create*Snapshot.
- *
- * \param buffer Pointer to a buffer that might contain a snapshot.
- * \param buffer_size Size of the buffer.
- *
- * \return Whether the buffer contains a snapshot (core, app or script).
- */
-DART_EXPORT bool Dart_IsSnapshot(const uint8_t* buffer, intptr_t buffer_size);
-
-/**
  * Returns whether the buffer contains a kernel file.
  *
  * \param buffer Pointer to a buffer that might contain a kernel binary.
@@ -1042,17 +1030,6 @@ DART_EXPORT bool Dart_IsSnapshot(const uint8_t* buffer, intptr_t buffer_size);
  * \return Whether the buffer contains a kernel binary (full or partial).
  */
 DART_EXPORT bool Dart_IsKernel(const uint8_t* buffer, intptr_t buffer_size);
-
-/**
- * Returns true if snapshot_buffer contains a Dart2 snapshot.
- *
- * \param snapshot_buffer Pointer to a buffer that contains the snapshot
- *   that needs to be checked.
- * \param snapshot_size Size of the buffer.
- *
- * \returns true if the snapshot is a Dart2 snapshot, false otherwise.
- */
-DART_EXPORT bool Dart_IsDart2Snapshot(const uint8_t* snapshot_buffer);
 
 /**
  * Make isolate runnable.
@@ -2920,36 +2897,6 @@ DART_EXPORT Dart_Handle Dart_DefaultCanonicalizeUrl(Dart_Handle base_url,
                                                     Dart_Handle url);
 
 /**
- * Called by the embedder to provide the source for the root script to
- * the VM.  This function should be called in response to a
- * Dart_kScriptTag tag handler request (See Dart_LibraryTagHandler,
- * above).
- *
- * \param url The original url requested for the script.
- *
- * \param resolved_url The actual url which was loaded.  This parameter
- *   is optionally provided to support isolate reloading.  A value of
- *   Dart_Null() indicates that the resolved url was the same as the
- *   requested url.
- *
- * \param source The contents of the url.
- *
- * \param line_offset is the number of text lines before the
- *   first line of the Dart script in the containing file.
- *
- * \param col_offset is the number of characters before the first character
- *   in the first line of the Dart script.
- *
- * \return A valid handle if no error occurs during the operation.
- */
-DART_EXPORT DART_WARN_UNUSED_RESULT Dart_Handle
-Dart_LoadScript(Dart_Handle url,
-                Dart_Handle resolved_url,
-                Dart_Handle source,
-                intptr_t line_offset,
-                intptr_t col_offset);
-
-/**
  * Loads the root library for the current isolate.
  *
  * Requires there to be no current root library.
@@ -3047,38 +2994,6 @@ DART_EXPORT Dart_Handle Dart_LibraryHandleError(Dart_Handle library,
                                                 Dart_Handle error);
 
 /**
- * Called by the embedder to provide the source for an "import"
- * directive.  This function should be called in response to a
- * Dart_kImportTag tag handler request (See Dart_LibraryTagHandler,
- * above).
- *
- * \param library The library where the "import" directive occurs.
- *
- * \param url The original url requested for the import.
- *
- * \param resolved_url The actual url which was loaded.  This parameter
- *   is optionally provided to support isolate reloading.  A value of
- *   Dart_Null() indicates that the resolved url was the same as the
- *   requested url.
- *
- * \param source The contents of the url.
- *
- * \param line_offset is the number of text lines before the
- *   first line of the Dart script in the containing file.
- *
- * \param col_offset is the number of characters before the first character
- *   in the first line of the Dart script.
- *
- * \return A valid handle if no error occurs during the operation.
- */
-DART_EXPORT DART_WARN_UNUSED_RESULT Dart_Handle
-Dart_LoadLibrary(Dart_Handle url,
-                 Dart_Handle resolved_url,
-                 Dart_Handle source,
-                 intptr_t line_offset,
-                 intptr_t column_offset);
-
-/**
  * Called by the embedder to load a partial program. Does not set the root
  * library.
  *
@@ -3093,22 +3008,6 @@ Dart_LoadLibraryFromKernel(const uint8_t* kernel_buffer,
                            intptr_t kernel_buffer_size);
 
 /**
- * Imports a library into another library, optionally with a prefix.
- * If no prefix is required, an empty string or Dart_Null() can be
- * supplied.
- *
- * \param library The library into which to import another library.
- * \param import The library to import.
- * \param prefix The prefix under which to import.
- *
- * \return A valid handle if no error occurs during the operation.
- */
-DART_EXPORT DART_WARN_UNUSED_RESULT Dart_Handle
-Dart_LibraryImportLibrary(Dart_Handle library,
-                          Dart_Handle import,
-                          Dart_Handle prefix);
-
-/**
  * Returns a flattened list of pairs. The first element in each pair is the
  * importing library and and the second element is the imported library for each
  * import in the isolate of a library whose URI's scheme is [scheme].
@@ -3118,51 +3017,6 @@ Dart_LibraryImportLibrary(Dart_Handle library,
  * \return A handle to a list of flattened pairs of importer-importee.
  */
 DART_EXPORT Dart_Handle Dart_GetImportsOfScheme(Dart_Handle scheme);
-
-/**
- * Called by the embedder to provide the source for a "part of"
- * directive.  This function should be called in response to a
- * Dart_kSourceTag tag handler request (See Dart_LibraryTagHandler,
- * above).
- *
- * \param library The library where the "part of" directive occurs.
- *
- * \param url The original url requested for the part.
- *
- * \param resolved_url The actual url which was loaded.  This parameter
- *   is optionally provided to support isolate reloading.  A value of
- *   Dart_Null() indicates that the resolved url was the same as the
- *   requested url.
- *
- * \param source The contents of the url.
- *
- * \param line_offset is the number of text lines before the
- *   first line of the Dart script in the containing file.
- *
- * \param col_offset is the number of characters before the first character
- *   in the first line of the Dart script.
- *
- * \return A valid handle if no error occurs during the operation.
- */
-DART_EXPORT DART_WARN_UNUSED_RESULT Dart_Handle
-Dart_LoadSource(Dart_Handle library,
-                Dart_Handle url,
-                Dart_Handle resolved_url,
-                Dart_Handle source,
-                intptr_t line_offset,
-                intptr_t column_offset);
-
-/**
- * Loads a patch source string into a library.
- *
- * \param library A library
- * \param url A url identifying the origin of the patch source
- * \param source A string of Dart patch source
- */
-DART_EXPORT DART_WARN_UNUSED_RESULT Dart_Handle
-Dart_LibraryLoadPatch(Dart_Handle library,
-                      Dart_Handle url,
-                      Dart_Handle patch_source);
 
 /**
  * Indicates that all outstanding load requests have been satisfied.

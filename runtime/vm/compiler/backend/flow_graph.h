@@ -14,6 +14,7 @@
 
 namespace dart {
 
+class LoopHierarchy;
 class VariableLivenessAnalysis;
 
 class BlockIterator : public ValueObject {
@@ -149,10 +150,6 @@ class FlowGraph : public ZoneAllocated {
     return num_direct_parameters_ - variable->index().value();
   }
 
-  bool IsEntryPoint(BlockEntryInstr* target) const {
-    return graph_entry()->IsEntryPoint(target);
-  }
-
   // Flow graph orders.
   const GrowableArray<BlockEntryInstr*>& preorder() const { return preorder_; }
   const GrowableArray<BlockEntryInstr*>& postorder() const {
@@ -229,7 +226,9 @@ class FlowGraph : public ZoneAllocated {
   intptr_t InstructionCount() const;
 
   ConstantInstr* GetConstant(const Object& object);
-  void AddToInitialDefinitions(Definition* defn);
+  void AddToGraphInitialDefinitions(Definition* defn);
+  void AddToInitialDefinitions(BlockEntryWithInitialDefs* entry,
+                               Definition* defn);
 
   enum UseKind { kEffect, kValue };
 
@@ -288,20 +287,27 @@ class FlowGraph : public ZoneAllocated {
 
   PrologueInfo prologue_info() const { return prologue_info_; }
 
-  const ZoneGrowableArray<BlockEntryInstr*>& LoopHeaders() {
-    if (loop_headers_ == NULL) {
-      loop_headers_ = ComputeLoops();
+  // Computes the loop hierarchy of the flow graph on demand.
+  const LoopHierarchy& GetLoopHierarchy() {
+    if (loop_hierarchy_ == nullptr) {
+      loop_hierarchy_ = ComputeLoops();
     }
-    return *loop_headers_;
+    return *loop_hierarchy_;
   }
 
-  const ZoneGrowableArray<BlockEntryInstr*>* loop_headers() const {
-    return loop_headers_;
+  // Resets the loop hierarchy of the flow graph. Use this to
+  // force a recomputation of loop detection by the next call
+  // to GetLoopHierarchy() (note that this does not immediately
+  // reset the loop_info fields of block entries, although
+  // these will be overwritten by that next call).
+  void ResetLoopHierarchy() {
+    loop_hierarchy_ = nullptr;
+    loop_invariant_loads_ = nullptr;
   }
 
-  // Finds natural loops in the flow graph and attaches a list of loop
-  // body blocks for each loop header.
-  ZoneGrowableArray<BlockEntryInstr*>* ComputeLoops() const;
+  // Helper method to find the natural loops in the flow graph and attach
+  // the loop information to each entry block. Returns the loop hierarchy.
+  LoopHierarchy* ComputeLoops() const;
 
   // Per loop header invariant loads sets. Each set contains load id for
   // those loads that are not affected by anything in the loop and can be
@@ -420,7 +426,21 @@ class FlowGraph : public ZoneAllocated {
   void RenameRecursive(BlockEntryInstr* block_entry,
                        GrowableArray<Definition*>* env,
                        GrowableArray<PhiInstr*>* live_phis,
-                       VariableLivenessAnalysis* variable_liveness);
+                       VariableLivenessAnalysis* variable_liveness,
+                       ZoneGrowableArray<Definition*>* inlining_parameters);
+
+  void PopulateEnvironmentFromFunctionEntry(
+      FunctionEntryInstr* function_entry,
+      GrowableArray<Definition*>* env,
+      GrowableArray<PhiInstr*>* live_phis,
+      VariableLivenessAnalysis* variable_liveness,
+      ZoneGrowableArray<Definition*>* inlining_parameters);
+
+  void PopulateEnvironmentFromOsrEntry(OsrEntryInstr* osr_entry,
+                                       GrowableArray<Definition*>* env);
+
+  void PopulateEnvironmentFromCatchEntry(CatchBlockEntryInstr* catch_entry,
+                                         GrowableArray<Definition*>* env);
 
   void AttachEnvironment(Instruction* instr, GrowableArray<Definition*>* env);
 
@@ -434,12 +454,14 @@ class FlowGraph : public ZoneAllocated {
   void ReplacePredecessor(BlockEntryInstr* old_block,
                           BlockEntryInstr* new_block);
 
-  // Find the natural loop for the back edge m->n and attach loop
-  // information to block n (loop header). The algorithm is described in
-  // "Advanced Compiler Design & Implementation" (Muchnick) p192.
-  // Returns a BitVector indexed by block pre-order number where each bit
-  // indicates membership in the loop.
-  BitVector* FindLoop(BlockEntryInstr* m, BlockEntryInstr* n) const;
+  // Find the blocks in the natural loop for the back edge m->n. The
+  // algorithm is described in "Advanced Compiler Design & Implementation"
+  // (Muchnick) p192. Returns a BitVector indexed by block pre-order
+  // number where each bit indicates membership in the loop.
+  BitVector* FindLoopBlocks(BlockEntryInstr* m, BlockEntryInstr* n) const;
+
+  // Attaches closest enveloping loop in the hierarchy to each block entry.
+  void LinkToInner(LoopInfo* loop) const;
 
   void InsertConversionsFor(Definition* def);
   void ConvertUse(Value* use, Representation from);
@@ -490,8 +512,10 @@ class FlowGraph : public ZoneAllocated {
 
   const PrologueInfo prologue_info_;
 
-  ZoneGrowableArray<BlockEntryInstr*>* loop_headers_;
+  // Loop related fields.
+  LoopHierarchy* loop_hierarchy_;
   ZoneGrowableArray<BitVector*>* loop_invariant_loads_;
+
   ZoneGrowableArray<const LibraryPrefix*>* deferred_prefixes_;
   ZoneGrowableArray<TokenPosition>* await_token_positions_;
   DirectChainedHashMap<ConstantPoolTrait> constant_instr_pool_;

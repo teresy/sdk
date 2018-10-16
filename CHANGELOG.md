@@ -1,15 +1,123 @@
 ## 2.1.0-dev.XX.0
-(Add new changes here, and they will be copied to the change section for the
-  next dev version)
+
+#### `dart:html`
+Fixed Service Workers and any Promise/Future API with a Dictionary parameter.
+
+APIs in dart:html (that take a Dictionary) will receive a Dart Map parameter.  The Map parameter
+must be converted to a Dictionary before passing to the browser's API.  Before this change,
+any Promise/Future API with a Map/Dictionary parameter never called the Promise and didn't
+return a Dart Future - now it does.
+
+This caused a number of breaks especially in Service Workers (register, etc.).  Here is a
+complete list of the fixed APIs:
+
+BackgroundFetchManager
+    Future<BackgroundFetchRegistration> fetch(String id, Object requests, [Map options])
+
+CacheStorage
+    Future match(/*RequestInfo*/ request, [Map options])
+
+CanMakePayment
+    Future<List<Client>> matchAll([Map options])
+
+CookieStore
+    Future getAll([Map options])
+    Future set(String name, String value, [Map options])
+
+CredentialsContainer
+    Future get([Map options])
+    Future create([Map options])
+
+ImageCapture
+    Future setOptions(Map photoSettings)
+
+MediaCapabilities
+    Future<MediaCapabilitiesInfo> decodingInfo(Map configuration)
+    Future<MediaCapabilitiesInfo> encodingInfo(Map configuration)
+
+MediaStreamTrack
+    Future applyConstraints([Map constraints])
+
+Navigator
+    Future requestKeyboardLock([List<String> keyCodes])
+    Future requestMidiAccess([Map options])
+    Future share([Map data])
+
+OffscreenCanvas
+    Future<Blob> convertToBlob([Map options])
+
+PaymentInstruments
+    Future set(String instrumentKey, Map details)
+
+Permissions
+    Future<PermissionStatus> query(Map permission)
+    Future<PermissionStatus> request(Map permissions)
+    Future<PermissionStatus> revoke(Map permission)
+
+PushManager
+    Future permissionState([Map options])
+    Future<PushSubscription> subscribe([Map options])
+
+RtcPeerConnection
+    * **CHANGED** Future createAnswer([options_OR_successCallback,
+                                       RtcPeerConnectionErrorCallback failureCallback,
+                                       Map mediaConstraints])
+    Future<RtcSessionDescription> createAnswer([Map options])
+    * **CHANGED** Future createOffer([options_OR_successCallback,
+                                      RtcPeerConnectionErrorCallback failureCallback,
+                                      Map rtcOfferOptions])
+    Future<RtcSessionDescription> createOffer([Map options])
+    * **CHANGED** Future setLocalDescription(Map description, VoidCallback successCallback,
+                                             [RtcPeerConnectionErrorCallback failureCallback])
+    Future setLocalDescription(Map description)
+    * **CHANGED** Future setLocalDescription(Map description, VoidCallback successCallback,
+                                             [RtcPeerConnectionErrorCallback failureCallback])
+    Future setRemoteDescription(Map description)
+
+ServiceWorkerContainer
+    Future<ServiceWorkerRegistration> register(String url, [Map options])
+
+ServiceWorkerRegistration
+    Future<List<Notification>> getNotifications([Map filter])
+    Future showNotification(String title, [Map options])
+
+VRDevice
+    Future requestSession([Map options])
+    Future supportsSession([Map options])
+
+VRSession
+    Future requestFrameOfReference(String type, [Map options])
+
+Window
+    Future fetch(/*RequestInfo*/ input, [Map init])
+
+WorkerGlobalScope
+    Future fetch(/*RequestInfo*/ input, [Map init])
+
+In addition, exposed Service Worker "self" as a static getter named "instance".  The
+instance is exposed on four different Service Worker classes and can throw a InstanceTypeError
+if the instance isn't of the class expected (WorkerGlobalScope.instance will always work
+and not throw):
+
+*   SharedWorkerGlobalScope.instance
+*   DedicatedWorkerGlobalScope.instance
+*   ServiceWorkerGlobalScope.instance
+*   WorkerGlobalScope.instance
+
 
 ### Language
 
+*   Allow integer literals to be used in double contexts.
+    An integer literal used in a place where a double is required is now
+    interpreted as a double value. The numerical value of the literal needs
+    to be precisely representable as a double value.
+
+*   Integer literals compiled to JavaScript are now allowed to have any
+    value that can be exactly represented as a JavaScript `Number`.
+    They were previously limited to such numbers that were also representable
+    as signed 64-bit integers.
+
 ### Core library changes
-
-#### `dart:core`
-
-*   Made `Uri` parsing more permissive about `[` and `]` occurring
-    in the path, query or fragment, and `#` occurring in fragment.
 
 ### Dart VM
 
@@ -17,7 +125,67 @@
 
 #### Pub
 
+#### dart2js
+
+*   Breaking change: duplicate keys in a const map are not allowed and produce a
+    compile-time error.  Dart2js used to report this as a warning before. Note
+    this is already an error in dartanalyzer and DDC and will be an error in
+    other tools in the future as well.
+
 #### Other Tools
+
+## 2.1.0-dev.7.0
+
+### Language
+
+*   Fixed a bug (issue [32014](http://dartbug.com/32014)) that caused invalid
+    implementations of the interface of a class to not be reported in some cases.
+    For instance, the following code would not produce a compile-time error:
+
+    ```dart
+    class A {
+      num get thing => 2.0;
+    }
+
+    abstract class B implements A {
+      int get thing;
+    }
+
+    class C extends A with B {} // 'thing' from 'A' is not a valid override of 'thing' from 'B'.
+
+    main() {
+      print(new C().thing.isEven); // Expects an int but gets a double.
+    }
+    ```
+
+*   Fixed a bug (issue [34235](http://dartbug.com/34235)) that caused invalid
+    overrides between a mixin member and an overridden member in the superclass
+    of the mixin application to not be reported. For instance, the following
+    code would not produce a compile-time error:
+
+    ```dart
+    class A {
+      int get thing => 2;
+    }
+
+    class B {
+      num get thing => 2.0;
+    }
+
+    class C extends A with B {} // 'thing' from 'B' is not a valid override of 'thing' from 'A'.
+
+    main() {
+      A a = new C();
+      print(a.thing.isEven); // Expects an int but gets a double.
+    }
+    ```
+
+### Core library changes
+
+#### `dart:core`
+
+*   Made `Uri` parsing more permissive about `[` and `]` occurring
+    in the path, query or fragment, and `#` occurring in fragment.
 
 ## 2.1.0-dev.6.0
 

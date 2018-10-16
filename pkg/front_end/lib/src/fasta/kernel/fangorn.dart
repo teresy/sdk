@@ -9,7 +9,9 @@ import 'dart:core' hide MapEntry;
 import 'package:kernel/ast.dart'
     show
         Arguments,
+        AsExpression,
         AssertInitializer,
+        AwaitExpression,
         Block,
         Catch,
         DartType,
@@ -44,7 +46,6 @@ import 'kernel_expression_generator.dart'
         KernelDelayedAssignment,
         KernelDelayedPostfixIncrement,
         KernelIndexedAccessGenerator,
-        KernelIntAccessGenerator,
         KernelLoadLibraryGenerator,
         KernelNullAwarePropertyAccessGenerator,
         KernelParserErrorGenerator,
@@ -65,10 +66,8 @@ import 'kernel_expression_generator.dart'
 import 'kernel_shadow_ast.dart'
     show
         ArgumentsJudgment,
-        AsJudgment,
         AssertInitializerJudgment,
         AssertStatementJudgment,
-        AwaitJudgment,
         BlockJudgment,
         BoolJudgment,
         BreakJudgment,
@@ -95,6 +94,7 @@ import 'kernel_shadow_ast.dart'
         NullJudgment,
         RethrowJudgment,
         ReturnJudgment,
+        ShadowLargeIntLiteral,
         StringConcatenationJudgment,
         StringLiteralJudgment,
         SymbolLiteralJudgment,
@@ -170,7 +170,13 @@ class Fangorn extends Forest {
 
   @override
   IntJudgment literalInt(int value, Token token) {
-    return new IntJudgment(value)..fileOffset = offsetForToken(token);
+    return new IntJudgment(value, token?.lexeme)
+      ..fileOffset = offsetForToken(token);
+  }
+
+  @override
+  ShadowLargeIntLiteral literalLargeInt(String literal, Token token) {
+    return new ShadowLargeIntLiteral(literal, offsetForToken(token));
   }
 
   @override
@@ -251,7 +257,8 @@ class Fangorn extends Forest {
 
   @override
   Expression asExpression(Expression expression, DartType type, Token token) {
-    return new AsJudgment(expression, type)..fileOffset = offsetForToken(token);
+    return new AsExpression(expression, type)
+      ..fileOffset = offsetForToken(token);
   }
 
   @override
@@ -309,7 +316,7 @@ class Fangorn extends Forest {
 
   @override
   Expression awaitExpression(Expression operand, Token token) {
-    return new AwaitJudgment(operand)..fileOffset = offsetForToken(token);
+    return new AwaitExpression(operand)..fileOffset = offsetForToken(token);
   }
 
   @override
@@ -696,12 +703,6 @@ class Fangorn extends Forest {
       String plainNameForRead) {
     return new KernelReadOnlyAccessGenerator(
         helper, token, expression, plainNameForRead);
-  }
-
-  @override
-  KernelIntAccessGenerator intAccessGenerator(
-      ExpressionGeneratorHelper helper, Token token) {
-    return new KernelIntAccessGenerator(helper, token);
   }
 
   @override

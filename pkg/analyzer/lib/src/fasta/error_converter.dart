@@ -5,8 +5,6 @@
 import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/ast/token.dart' show Token;
 import 'package:analyzer/src/dart/error/syntactic_errors.dart';
-import 'package:analyzer/src/generated/resolver.dart' show ResolverErrorCode;
-import 'package:front_end/src/api_prototype/compilation_message.dart';
 import 'package:front_end/src/fasta/messages.dart' show Code, Message;
 
 /// An error reporter that knows how to convert a Fasta error into an analyzer
@@ -26,10 +24,6 @@ class FastaErrorReporter {
     String lexeme() => (arguments['token'] as Token).lexeme;
 
     switch (analyzerCode) {
-      case "ABSTRACT_CLASS_MEMBER":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.ABSTRACT_CLASS_MEMBER, offset, length);
-        return;
       case "ANNOTATION_WITH_TYPE_ARGUMENTS":
         errorReporter?.reportErrorForOffset(
             CompileTimeErrorCode.ANNOTATION_WITH_TYPE_ARGUMENTS,
@@ -44,10 +38,6 @@ class FastaErrorReporter {
         errorReporter?.reportErrorForOffset(
             ParserErrorCode.ASYNC_KEYWORD_USED_AS_IDENTIFIER, offset, length);
         return;
-      case "BREAK_OUTSIDE_OF_LOOP":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.BREAK_OUTSIDE_OF_LOOP, offset, length);
-        return;
       case "BUILT_IN_IDENTIFIER_AS_TYPE":
         errorReporter?.reportErrorForOffset(
             CompileTimeErrorCode.BUILT_IN_IDENTIFIER_AS_TYPE,
@@ -59,72 +49,20 @@ class FastaErrorReporter {
         errorReporter?.reportErrorForOffset(
             ParserErrorCode.CATCH_SYNTAX, offset, length);
         return;
-      case "CLASS_IN_CLASS":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.CLASS_IN_CLASS, offset, length);
-        return;
-      case "COLON_IN_PLACE_OF_IN":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.COLON_IN_PLACE_OF_IN, offset, length);
-        return;
       case "CONCRETE_CLASS_WITH_ABSTRACT_MEMBER":
         errorReporter?.reportErrorForOffset(
             StaticWarningCode.CONCRETE_CLASS_WITH_ABSTRACT_MEMBER,
             offset,
             length);
         return;
-      case "CONST_AFTER_FACTORY":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.CONST_AFTER_FACTORY, offset, length);
-        return;
-      case "CONST_AND_COVARIANT":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.CONST_AND_COVARIANT, offset, length);
-        return;
-      case "CONST_AND_FINAL":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.CONST_AND_FINAL, offset, length);
-        return;
-      case "CONST_AND_VAR":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.CONST_AND_VAR, offset, length);
-        return;
-      case "CONST_CLASS":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.CONST_CLASS, offset, length);
-        return;
       case "CONST_CONSTRUCTOR_WITH_BODY":
         errorReporter?.reportErrorForOffset(
             ParserErrorCode.CONST_CONSTRUCTOR_WITH_BODY, offset, length);
-        return;
-      case "CONST_FACTORY":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.CONST_FACTORY, offset, length);
-        return;
-      case "CONST_METHOD":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.CONST_METHOD, offset, length);
         return;
       case "CONST_NOT_INITIALIZED":
         String name = arguments['name'];
         errorReporter?.reportErrorForOffset(
             CompileTimeErrorCode.CONST_NOT_INITIALIZED, offset, length, [name]);
-        return;
-      case "CONSTRUCTOR_WITH_RETURN_TYPE":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.CONSTRUCTOR_WITH_RETURN_TYPE, offset, length);
-        return;
-      case "CONTINUE_WITHOUT_LABEL_IN_CASE":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.CONTINUE_WITHOUT_LABEL_IN_CASE, offset, length);
-        return;
-      case "COVARIANT_AFTER_FINAL":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.COVARIANT_AFTER_FINAL, offset, length);
-        return;
-      case "COVARIANT_AND_STATIC":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.COVARIANT_AND_STATIC, offset, length);
         return;
       case "DEFAULT_VALUE_IN_FUNCTION_TYPE":
         errorReporter?.reportErrorForOffset(
@@ -144,25 +82,9 @@ class FastaErrorReporter {
             length,
             [arguments['name']]);
         return;
-      case "COVARIANT_MEMBER":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.COVARIANT_MEMBER, offset, length);
-        return;
-      case "DEFERRED_AFTER_PREFIX":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.DEFERRED_AFTER_PREFIX, offset, length);
-        return;
-      case "DIRECTIVE_AFTER_DECLARATION":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.DIRECTIVE_AFTER_DECLARATION, offset, length);
-        return;
       case "DUPLICATE_DEFERRED":
         errorReporter?.reportErrorForOffset(
             ParserErrorCode.DUPLICATE_DEFERRED, offset, length);
-        return;
-      case "DUPLICATED_MODIFIER":
-        errorReporter?.reportErrorForOffset(
-            ParserErrorCode.DUPLICATED_MODIFIER, offset, length, [lexeme()]);
         return;
       case "DUPLICATE_PREFIX":
         errorReporter?.reportErrorForOffset(
@@ -477,6 +399,13 @@ class FastaErrorReporter {
             offset,
             length);
         return;
+      case "WRONG_NUMBER_OF_TYPE_ARGUMENTS_CONSTRUCTOR":
+        errorReporter?.reportErrorMessage(
+            StaticTypeWarningCode.WRONG_NUMBER_OF_TYPE_ARGUMENTS_CONSTRUCTOR,
+            offset,
+            length,
+            message);
+        return;
       case "WRONG_SEPARATOR_FOR_POSITIONAL_PARAMETER":
         errorReporter?.reportErrorForOffset(
             ParserErrorCode.WRONG_SEPARATOR_FOR_POSITIONAL_PARAMETER,
@@ -489,27 +418,6 @@ class FastaErrorReporter {
         return;
       default:
       // fall through
-    }
-  }
-
-  void reportCompilationMessage(CompilationMessage message) {
-    String errorCodeStr = message.analyzerCode;
-    ErrorCode errorCode = _getErrorCode(errorCodeStr);
-    if (errorCode != null) {
-      errorReporter.reportError(new AnalysisError.forValues(
-          errorReporter.source,
-          message.span.start.offset,
-          message.span.length,
-          errorCode,
-          message.message,
-          message.tip));
-    } else if (message.severity != Severity.context) {
-      // Messages with [Severity.context] are supposed to give extra information
-      // to messages of other kinds, and it should be possible to ignore them
-      // without affecting the discoverability of compile-time errors.  See also
-      // https://github.com/dart-lang/sdk/issues/33730.
-      throw new StateError('Unable to convert (${message.code}, $errorCodeStr, '
-          '@${message.span.start.offset}, $message)');
     }
   }
 
@@ -552,26 +460,5 @@ class FastaErrorReporter {
           message.message,
           null));
     }
-  }
-
-  /// Return the [ErrorCode] for the given [shortName], or `null` if not found.
-  static ErrorCode _getErrorCode(String shortName) {
-    const prefixes = const {
-      CompileTimeErrorCode: 'CompileTimeErrorCode.',
-      StrongModeCode: 'StrongModeCode.STRONG_MODE_',
-      ResolverErrorCode: 'ResolverErrorCode.',
-      ParserErrorCode: 'ParserErrorCode.',
-      ScannerErrorCode: 'ScannerErrorCode.',
-      StaticTypeWarningCode: 'StaticTypeWarningCode.',
-      StaticWarningCode: 'StaticWarningCode.'
-    };
-    for (var prefix in prefixes.values) {
-      var uniqueName = '$prefix$shortName';
-      var errorCode = errorCodeByUniqueName(uniqueName);
-      if (errorCode != null) {
-        return errorCode;
-      }
-    }
-    return null;
   }
 }

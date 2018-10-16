@@ -2992,17 +2992,6 @@ class StaticTypeWarningCode extends ErrorCode {
           "The operands of the '{0}' operator must be assignable to 'bool'.");
 
   /**
-   * Parameters:
-   * 0: the name of the variable
-   * 1: the type of the variable
-   */
-  static const StaticTypeWarningCode NON_NULLABLE_FIELD_NOT_INITIALIZED =
-      const StaticTypeWarningCode('NON_NULLABLE_FIELD_NOT_INITIALIZED',
-          "Variable '{0}' of non-nullable type '{1}' must be initialized.",
-          correction: "Try adding an initializer to the declaration, or "
-              "making the variable nullable by adding a '?' after the type name.");
-
-  /**
    * 15.8 Parameterized Types: It is a static type warning if <i>A<sub>i</sub>,
    * 1 &lt;= i &lt;= n</i> does not denote a type in the enclosing lexical scope.
    */
@@ -3335,8 +3324,7 @@ class StaticTypeWarningCode extends ErrorCode {
       WRONG_NUMBER_OF_TYPE_ARGUMENTS_CONSTRUCTOR = const StaticTypeWarningCode(
           'WRONG_NUMBER_OF_TYPE_ARGUMENTS_CONSTRUCTOR',
           "The constructor '{0}.{1}' does not have type parameters.",
-          correction: "Try moving type arguments to after the type name.",
-          errorSeverity: ErrorSeverity.WARNING);
+          correction: "Try moving type arguments to after the type name.");
 
   /**
    * It will be a static type warning if <i>m</i> is not a generic method with
@@ -3406,9 +3394,6 @@ class StaticTypeWarningCode extends ErrorCode {
           "The type '{0}' used in the 'for' loop must implement {1} with a "
           "type argument that can be assigned to '{2}'.");
 
-  @override
-  final ErrorSeverity errorSeverity;
-
   /**
    * Initialize a newly created error code to have the given [name]. The message
    * associated with the error will be created from the given [message]
@@ -3416,12 +3401,13 @@ class StaticTypeWarningCode extends ErrorCode {
    * given [correction] template.
    */
   const StaticTypeWarningCode(String name, String message,
-      {String correction,
-      this.errorSeverity: ErrorSeverity.ERROR,
-      bool isUnresolvedIdentifier: false})
+      {String correction, bool isUnresolvedIdentifier: false})
       : super.temporary(name, message,
             correction: correction,
             isUnresolvedIdentifier: isUnresolvedIdentifier);
+
+  @override
+  ErrorSeverity get errorSeverity => ErrorSeverity.ERROR;
 
   @override
   ErrorType get type => ErrorType.STATIC_TYPE_WARNING;
@@ -3989,28 +3975,21 @@ class StaticWarningCode extends ErrorCode {
           "The element type '{0}' can't be assigned to the map value type '{1}'.");
 
   /**
-   * 7.3 Setters: It is a static warning if a class has a setter named <i>v=</i>
-   * with argument type <i>T</i> and a getter named <i>v</i> with return type
-   * <i>S</i>, and <i>T</i> may not be assigned to <i>S</i>.
+   * 10.3 Setters: It is a compile-time error if a class has a setter named
+   * `v=` with argument type `T` and a getter named `v` with return type `S`,
+   * and `S` may not be assigned to `T`.
+   *
+   * Parameters:
+   * 0: the name of the getter
+   * 1: the type of the getter
+   * 2: the type of the setter
+   * 3: the name of the setter
    */
   static const StaticWarningCode MISMATCHED_GETTER_AND_SETTER_TYPES =
       const StaticWarningCode(
           'MISMATCHED_GETTER_AND_SETTER_TYPES',
-          "The parameter type for setter '{0}' is '{1}' which isn't assignable "
-          "to its getter (of type '{2}').",
-          correction: "Try changing the types so that they are compatible.");
-
-  /**
-   * 7.3 Setters: It is a static warning if a class has a setter named <i>v=</i>
-   * with argument type <i>T</i> and a getter named <i>v</i> with return type
-   * <i>S</i>, and <i>T</i> may not be assigned to <i>S</i>.
-   */
-  static const StaticWarningCode
-      MISMATCHED_GETTER_AND_SETTER_TYPES_FROM_SUPERTYPE =
-      const StaticWarningCode(
-          'MISMATCHED_GETTER_AND_SETTER_TYPES_FROM_SUPERTYPE',
-          "The parameter type for setter '{0}' is '{1}' which isn't assignable "
-          "to its getter (of type '{2}'), from superclass '{3}'.",
+          "The return type of getter '{0}' is '{1}' which isn't assignable "
+          "to the type '{2}' of its setter '{3}'.",
           correction: "Try changing the types so that they are compatible.");
 
   /**

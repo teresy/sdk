@@ -1,11 +1,9 @@
-// Copyright (c) 2015, the Dart project authors.  Please see the AUTHORS file
+// Copyright (c) 2015, the Dart project authors. Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
 // TODO(jmesserly): this was ported from package:dev_compiler, and needs to be
 // refactored to fit into analyzer.
-library analyzer.src.task.strong.checker;
-
 import 'dart:collection';
 
 import 'package:analyzer/analyzer.dart';
@@ -227,24 +225,18 @@ class CodeChecker extends RecursiveAstVisitor {
   void visitBinaryExpression(BinaryExpression node) {
     var op = node.operator;
     if (op.isUserDefinableOperator) {
-      var element = node.staticElement;
-      if (element == null) {
+      var invokeType = node.staticInvokeType;
+      if (invokeType == null) {
         // Dynamic invocation
         // TODO(vsm): Move this logic to the resolver?
         if (op.type != TokenType.EQ_EQ && op.type != TokenType.BANG_EQ) {
           _recordDynamicInvoke(node, node.leftOperand);
         }
       } else {
-        // Method invocation.
-        if (element is MethodElement) {
-          var type = element.type;
-          // Analyzer should enforce number of parameter types, but check in
-          // case we have erroneous input.
-          if (type.normalParameterTypes.isNotEmpty) {
-            checkArgument(node.rightOperand, type.normalParameterTypes[0]);
-          }
-        } else {
-          // TODO(vsm): Assert that the analyzer found an error here?
+        // Analyzer should enforce number of parameter types, but check in
+        // case we have erroneous input.
+        if (invokeType.normalParameterTypes.isNotEmpty) {
+          checkArgument(node.rightOperand, invokeType.normalParameterTypes[0]);
         }
       }
     } else {
@@ -621,15 +613,6 @@ class CodeChecker extends RecursiveAstVisitor {
     VariableElement variableElement = node == null
         ? null
         : resolutionMap.elementDeclaredByVariableDeclaration(node);
-    if (!node.isConst &&
-        !node.isFinal &&
-        node.initializer == null &&
-        rules.isNonNullableType(variableElement?.type)) {
-      _recordMessage(
-          node,
-          StaticTypeWarningCode.NON_NULLABLE_FIELD_NOT_INITIALIZED,
-          [node.name, variableElement?.type]);
-    }
     AstNode parent = node.parent;
     if (variableElement != null &&
         parent is VariableDeclarationList &&
@@ -735,19 +718,6 @@ class CodeChecker extends RecursiveAstVisitor {
         true) {
       _recordImplicitCast(expr, to, from: from, opAssign: opAssign);
     }
-  }
-
-  /// Checks if the assignment is valid with respect to non-nullable types.
-  /// Returns `false` if a nullable expression is assigned to a variable of
-  /// non-nullable type and `true` otherwise.
-  bool _checkNonNullAssignment(
-      Expression expression, DartType to, DartType from) {
-    if (rules.isNonNullableType(to) && rules.isNullableType(from)) {
-      _recordMessage(
-          expression, StaticTypeWarningCode.INVALID_ASSIGNMENT, [from, to]);
-      return false;
-    }
-    return true;
   }
 
   void _checkReturnOrYield(Expression expression, AstNode node,
@@ -1063,8 +1033,6 @@ class CodeChecker extends RecursiveAstVisitor {
       {DartType from, bool isDeclarationCast: false}) {
     from ??= _getExpressionType(expr);
 
-    if (!_checkNonNullAssignment(expr, to, from)) return false;
-
     // Void is considered Top, but may only be *explicitly* cast.
     if (from.isVoid) return null;
 
@@ -1264,7 +1232,7 @@ class _OverrideChecker {
   /// Finds implicit casts that we need on parameters and type formals to
   /// ensure soundness of covariant generics, and records them on the [node].
   ///
-  /// The parameter checks can be retrived using [getClassCovariantParameters]
+  /// The parameter checks can be retrieved using [getClassCovariantParameters]
   /// and [getSuperclassCovariantParameters].
   ///
   /// For each member of this class and non-overridden inherited member, we
@@ -1434,7 +1402,7 @@ class _OverrideChecker {
   ///     }
   ///
   /// We've already found `C<Object>` is a potentially unsafe covariant generic
-  /// supertpe, and we call this method to see if any members need a check
+  /// supertype, and we call this method to see if any members need a check
   /// because of `C<Object>`.
   ///
   /// In this example, we will call this method with:
@@ -1448,7 +1416,7 @@ class _OverrideChecker {
   /// - get the type of `C<Object>.m`: `(Object) -> *`
   /// - get the type of `C<T>.m`:      `(T) -> *`
   /// - perform a subtype check `(T) -> * <: (Object) -> *`,
-  ///   and record any parameters/type formals that violate soundess.
+  ///   and record any parameters/type formals that violate soundness.
   /// - that checks `Object <: T`, which is false, thus we need a check on
   ///   parameter `t` of `C<T>.m`
   ///
@@ -1457,7 +1425,7 @@ class _OverrideChecker {
   /// - get the type of `D.g`:         `<R extends num>() -> *`
   /// - perform a subtype check
   ///   `<S extends Object>() -> * <: <R extends num>() -> *`,
-  ///   and record any parameters/type formals that violate soundess.
+  ///   and record any parameters/type formals that violate soundness.
   /// - that checks the type formal bound of `S` and `R` asserting
   ///   `Object <: num`, which is false, thus we need a check on type formal `R`
   ///   of `D.g`.

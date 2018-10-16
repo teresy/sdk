@@ -1,42 +1,56 @@
 // Copyright (c) 2018, the Dart project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
+
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io' show File;
 
 import 'package:analysis_server/protocol/protocol_constants.dart';
+import 'package:analysis_server/protocol/protocol_generated.dart';
+import 'package:analysis_server/src/protocol/protocol_internal.dart';
+import 'package:analyzer_cli/src/fix/context.dart';
 import 'package:analyzer_cli/src/fix/options.dart';
 import 'package:analyzer_cli/src/fix/server.dart';
-import 'package:analysis_server/src/protocol/protocol_internal.dart';
-import 'package:analysis_server/protocol/protocol_generated.dart';
 import 'package:analyzer_plugin/protocol/protocol_common.dart';
+import 'package:cli_util/cli_logging.dart';
+import 'package:path/path.dart' as path;
 
 // For development
 const runAnalysisServerFromSource = false;
 
 class Driver {
-  final Server server = new Server();
+  static const progressThreshold = 10;
+
+  final Context context = new Context();
+  Server server;
 
   Completer serverConnected;
   Completer analysisComplete;
-  bool dryRun;
+  bool force;
+  bool overwrite;
   bool verbose;
-  static const progressThreshold = 10;
+  List<String> targets;
+
+  Logger logger;
+
   int progressCount = progressThreshold;
 
-  Future start(List<String> args) async {
-    final options = Options.parse(args);
+  Ansi get ansi => logger.ansi;
 
-    /// Only happens in testing.
-    if (options == null) {
-      return null;
-    }
-    dryRun = options.dryRun;
+  Future start(List<String> args) async {
+    final Options options = Options.parse(args, context);
+
+    force = options.force;
+    overwrite = options.overwrite;
     verbose = options.verbose;
+    targets = options.targets;
+
+    logger = options.logger;
 
     EditDartfixResult result;
+
     await startServer(options);
+
     bool normalShutdown = false;
     try {
       await setupAnalysis(options);
@@ -57,47 +71,49 @@ class Driver {
   }
 
   Future startServer(Options options) async {
+    server = new Server(logger);
     const connectTimeout = const Duration(seconds: 15);
     serverConnected = new Completer();
     if (options.verbose) {
       server.debugStdio();
     }
-    verboseOut('Starting...');
+    logger.trace('Starting...');
     await server.start(
         sdkPath: options.sdkPath, useSnapshot: !runAnalysisServerFromSource);
     server.listenToOutput(dispatchNotification);
     return serverConnected.future.timeout(connectTimeout, onTimeout: () {
-      printAndFail('Failed to connect to server');
+      context.stderr.writeln('Failed to connect to server');
+      context.exit(15);
     });
   }
 
   Future setupAnalysis(Options options) async {
-    verboseOut('Setup analysis');
+    context.stdout.write('${ansi.emphasized('Calculating fixes')}...');
+    logger.trace('');
+    logger.trace('Setup analysis');
     await server.send(SERVER_REQUEST_SET_SUBSCRIPTIONS,
         new ServerSetSubscriptionsParams([ServerService.STATUS]).toJson());
     await server.send(
         ANALYSIS_REQUEST_SET_ANALYSIS_ROOTS,
         new AnalysisSetAnalysisRootsParams(
-          options.analysisRoots,
+          options.targets,
           const [],
         ).toJson());
   }
 
   Future<EditDartfixResult> requestFixes(Options options) async {
-    outSink.write('Calculating fixes...');
-    verboseOut('');
+    logger.trace('Requesting fixes');
     analysisComplete = new Completer();
-    Map<String, dynamic> json = await server.send(EDIT_REQUEST_DARTFIX,
-        new EditDartfixParams(options.analysisRoots).toJson());
-    await analysisComplete.future;
-    analysisComplete = null;
+    Map<String, dynamic> json = await server.send(
+        EDIT_REQUEST_DARTFIX, new EditDartfixParams(options.targets).toJson());
+    await analysisComplete?.future;
     resetProgress();
     ResponseDecoder decoder = new ResponseDecoder(null);
     return EditDartfixResult.fromJson(decoder, 'result', json);
   }
 
   Future stopServer(Server server) async {
-    verboseOut('Stopping...');
+    logger.trace('Stopping...');
     const timeout = const Duration(seconds: 5);
     await server.send(SERVER_REQUEST_SHUTDOWN, null).timeout(timeout,
         onTimeout: () {
@@ -109,72 +125,62 @@ class Driver {
   }
 
   Future applyFixes(EditDartfixResult result) async {
-    showDescriptions(result.descriptionOfFixes, 'Recommended changes');
-    showDescriptions(result.otherRecommendations,
-        'Recommended changes that cannot not be automatically applied');
+    showDescriptions('Recommended changes', result.descriptionOfFixes);
+    showDescriptions(
+      'Recommended changes that cannot not be automatically applied',
+      result.otherRecommendations,
+    );
     if (result.descriptionOfFixes.isEmpty) {
-      outSink.writeln('');
-      outSink.writeln(result.otherRecommendations.isNotEmpty
+      context.print('');
+      context.print(result.otherRecommendations.isNotEmpty
           ? 'No recommended changes that cannot be automatically applied.'
           : 'No recommended changes.');
       return;
     }
-    outSink.writeln('');
-    outSink.writeln('Files to be changed:');
+    context.print('');
+    context.print(ansi.emphasized('Files to be changed:'));
     for (SourceFileEdit fileEdit in result.fixes) {
-      outSink.writeln(fileEdit.file);
+      context.print('  ${fileEdit.file}');
     }
-    if (dryRun || !(await confirmApplyChanges(result))) {
-      return;
-    }
-    for (SourceFileEdit fileEdit in result.fixes) {
-      final file = new File(fileEdit.file);
-      String code = await file.readAsString();
-      for (SourceEdit edit in fileEdit.edits) {
-        code = edit.apply(code);
+    if (shouldApplyChanges(result)) {
+      for (SourceFileEdit fileEdit in result.fixes) {
+        final file = new File(fileEdit.file);
+        String code = await file.readAsString();
+        for (SourceEdit edit in fileEdit.edits) {
+          code = edit.apply(code);
+        }
+        await file.writeAsString(code);
       }
-      await file.writeAsString(code);
+      context.print('Changes applied.');
     }
-    outSink.writeln('Changes applied.');
   }
 
-  void showDescriptions(List<String> descriptions, String title) {
+  void showDescriptions(String title, List<String> descriptions) {
     if (descriptions.isNotEmpty) {
-      outSink.writeln('');
-      outSink.writeln('$title:');
+      context.print('');
+      context.print(ansi.emphasized('$title:'));
       List<String> sorted = new List.from(descriptions)..sort();
       for (String line in sorted) {
-        outSink.writeln(line);
+        context.print('  $line');
       }
     }
   }
 
-  Future<bool> confirmApplyChanges(EditDartfixResult result) async {
-    outSink.writeln();
+  bool shouldApplyChanges(EditDartfixResult result) {
+    context.print();
     if (result.hasErrors) {
-      outSink.writeln('WARNING: The analyzed source contains errors'
+      context.print('WARNING: The analyzed source contains errors'
           ' that may affect the accuracy of these changes.');
-    }
-    const prompt = 'Would you like to apply these changes (y/n)? ';
-    outSink.write(prompt);
-    final response = new Completer<bool>();
-    final subscription = inputStream
-        .transform(utf8.decoder)
-        .transform(new LineSplitter())
-        .listen((String line) {
-      line = line.trim().toLowerCase();
-      if (line == 'y' || line == 'yes') {
-        response.complete(true);
-      } else if (line == 'n' || line == 'no') {
-        response.complete(false);
-      } else {
-        outSink.writeln('  Unrecognized response. Please type "yes" or "no".');
-        outSink.write(prompt);
+      context.print();
+      if (!force) {
+        context.print('Rerun with --$forceOption to apply these changes.');
+        return false;
       }
-    });
-    bool applyChanges = await response.future;
-    await subscription.cancel();
-    return applyChanges;
+    } else if (!overwrite && !force) {
+      context.print('Rerun with --$overwriteOption to apply these changes.');
+      return false;
+    }
+    return true;
   }
 
   /// Dispatch the notification named [event], and containing parameters
@@ -281,21 +287,28 @@ class Driver {
 
   void onAnalysisErrors(AnalysisErrorsParams params) {
     List<AnalysisError> errors = params.errors;
-    if (errors.isNotEmpty) {
-      resetProgress();
-      outSink.writeln(params.file);
+    bool foundAtLeastOneError = false;
+    if (errors.isNotEmpty && isTarget(params.file)) {
       for (AnalysisError error in errors) {
-        Location loc = error.location;
-        outSink.writeln('  ${error.message}'
-            ' at ${loc.startLine}:${loc.startColumn}');
+        if (!shouldFilterError(error)) {
+          if (!foundAtLeastOneError) {
+            foundAtLeastOneError = true;
+            resetProgress();
+            context.print(params.file);
+          }
+          Location loc = error.location;
+          context.print('  ${error.message}'
+              ' at ${loc.startLine}:${loc.startColumn}');
+        }
       }
-    } else {
+    }
+    if (!foundAtLeastOneError) {
       showProgress();
     }
   }
 
   void onServerConnected(ServerConnectedParams params) {
-    verboseOut('Connected to server');
+    logger.trace('Connected to server');
     serverConnected.complete();
   }
 
@@ -309,33 +322,48 @@ class Driver {
     if (params.stackTrace != null) {
       message.writeln(params.stackTrace);
     }
-    printAndFail(message.toString());
+    context.stderr.writeln(message.toString());
+    context.exit(15);
   }
 
   void onServerStatus(ServerStatusParams params) {
     if (params.analysis != null && !params.analysis.isAnalyzing) {
-      verboseOut('Analysis complete');
+      logger.trace('Analysis complete');
       analysisComplete?.complete();
+      analysisComplete = null;
     }
   }
 
   void resetProgress() {
     if (!verbose && progressCount >= progressThreshold) {
-      outSink.writeln();
+      context.print();
     }
     progressCount = 0;
   }
 
+  bool shouldFilterError(AnalysisError error) {
+    // Do not show TODOs or errors that will be automatically fixed.
+
+    // TODO(danrubel): Rather than checking the error.code with
+    // specific strings, add something to the error indicating that
+    // it will be automatically fixed by edit.dartfix.
+    return error.type.name == 'TODO' ||
+        error.code == 'wrong_number_of_type_arguments_constructor';
+  }
+
   void showProgress() {
     if (!verbose && progressCount % progressThreshold == 0) {
-      outSink.write('.');
+      context.stdout.write('.');
     }
     ++progressCount;
   }
 
-  void verboseOut(String message) {
-    if (verbose) {
-      outSink.writeln(message);
+  bool isTarget(String filePath) {
+    for (String target in targets) {
+      if (filePath == target || path.isWithin(target, filePath)) {
+        return true;
+      }
     }
+    return false;
   }
 }
