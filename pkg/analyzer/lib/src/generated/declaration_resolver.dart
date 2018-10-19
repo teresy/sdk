@@ -174,7 +174,7 @@ class DeclarationResolver extends RecursiveAstVisitor<void> {
     if (annotations.isEmpty && node.metadata.isNotEmpty) {
       int index = (node.parent as CompilationUnit)
           .directives
-          .where((directive) => directive is ExportDirective)
+          .whereType<ExportDirective>()
           .toList()
           .indexOf(node);
       annotations = _walker.element.library.exports[index].metadata;
@@ -311,7 +311,7 @@ class DeclarationResolver extends RecursiveAstVisitor<void> {
     if (annotations.isEmpty && node.metadata.isNotEmpty) {
       int index = (node.parent as CompilationUnit)
           .directives
-          .where((directive) => directive is ImportDirective)
+          .whereType<ImportDirective>()
           .toList()
           .indexOf(node);
       annotations = _walker.element.library.imports[index].metadata;
@@ -385,7 +385,7 @@ class DeclarationResolver extends RecursiveAstVisitor<void> {
     if (annotations.isEmpty && node.metadata.isNotEmpty) {
       int index = (node.parent as CompilationUnit)
           .directives
-          .where((directive) => directive is PartDirective)
+          .whereType<PartDirective>()
           .toList()
           .indexOf(node);
       annotations = _walker.element.library.parts[index].metadata;

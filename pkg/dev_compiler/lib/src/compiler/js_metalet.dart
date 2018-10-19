@@ -285,7 +285,7 @@ T _substitute<T extends Node>(
   var instantiator = generator.compile(tree);
   var nodes = List<MetaLetVariable>.from(generator
       .analysis.containsInterpolatedNode
-      .where((n) => n is MetaLetVariable));
+      .whereType<MetaLetVariable>());
   if (nodes.isEmpty) return tree;
 
   return instantiator(Map.fromIterable(nodes,

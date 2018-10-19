@@ -114,7 +114,7 @@ class RenameImportRefactoringImpl extends RenameRefactoringImpl {
     LibraryElement library = element.library;
     CompilationUnit unit = await astProvider.getParsedUnitForElement(library);
     int index = library.imports.indexOf(element);
-    return unit.directives.where((d) => d is ImportDirective).toList()[index];
+    return unit.directives.whereType<ImportDirective>().toList()[index];
   }
 
   /**
