@@ -217,7 +217,7 @@ class GnWorkspace extends Workspace {
     }
     return genDir
         .getChildren()
-        .where((resource) => resource is File)
+        .whereType<File>()
         .map((resource) => resource as File)
         .where((File file) => pathContext.extension(file.path) == '.packages')
         .map((File file) => file.path)
@@ -253,7 +253,7 @@ class GnWorkspace extends Workspace {
     }
     return outDirectory
         .getChildren()
-        .where((resource) => resource is Folder)
+        .whereType<Folder>()
         .map((resource) => resource as Folder)
         .firstWhere((Folder folder) {
       String baseName = pathContext.basename(folder.path);

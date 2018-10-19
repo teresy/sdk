@@ -27,9 +27,9 @@ void main() {
         result.add(v);
         if (v == 0) {
           Expect.listEquals(["alive", "control"],
-              result.where((x) => x is String).toList(), "control events");
+              result.whereType<String>().toList(), "control events");
           Expect.listEquals([3, 2, 1, 0],
-              result.where((x) => x is int).toList(), "data events");
+              result.whereType<int>().toList(), "data events");
           Expect.isTrue(
               result.indexOf("alive") < result.indexOf(2), "alive index < 2");
           Expect.isTrue(result.indexOf("control") < result.indexOf(1),

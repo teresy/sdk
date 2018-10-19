@@ -236,7 +236,7 @@ MethodMirror randomMethodOf(receiver) {
         .toList());
   } else if (receiver is LibraryMirror) {
     return randomElementOf(
-        receiver.declarations.values.where((d) => d is MethodMirror).toList());
+        receiver.declarations.values.whereType<MethodMirror>().toList());
   } else if (receiver is InstanceMirror) {
     var methods = [];
     var cls = receiver.type;

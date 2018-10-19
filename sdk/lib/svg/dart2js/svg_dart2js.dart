@@ -2907,7 +2907,7 @@ class SvgElement extends Element implements GlobalEventHandlers, NoncedElement {
     }
     var fragment = parentElement.createFragment(svg,
         validator: validator, treeSanitizer: treeSanitizer);
-    return fragment.nodes.where((e) => e is SvgElement).single;
+    return fragment.nodes.whereType<SvgElement>().single;
   }
 
   CssClassSet get classes => new AttributeClassSet(this);

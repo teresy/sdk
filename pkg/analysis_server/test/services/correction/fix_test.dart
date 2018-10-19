@@ -521,7 +521,7 @@ class B {}
     await resolveTestUnit('''
 f(List<A> a) {
   List<B> b;
-  b = a.where((e) => e is B).toList();
+  b = a.whereType<B>().toList();
 }
 class A {}
 class B {}
@@ -529,7 +529,7 @@ class B {}
     await assertHasFix(DartFixKind.ADD_EXPLICIT_CAST, '''
 f(List<A> a) {
   List<B> b;
-  b = a.where((e) => e is B).cast<B>().toList();
+  b = a.whereType<B>().cast<B>().toList();
 }
 class A {}
 class B {}
@@ -540,8 +540,8 @@ class B {}
     await resolveTestUnit('''
 f(List<A> a) {
   List<B> b, b2;
-  b = a.where((e) => e is B).toList();
-  b2 = a.where((e) => e is B).toList();
+  b = a.whereType<B>().toList();
+  b2 = a.whereType<B>().toList();
 }
 class A {}
 class B {}
@@ -550,8 +550,8 @@ class B {}
         DartFixKind.ADD_EXPLICIT_CAST, '''
 f(List<A> a) {
   List<B> b, b2;
-  b = a.where((e) => e is B).cast<B>().toList();
-  b2 = a.where((e) => e is B).cast<B>().toList();
+  b = a.whereType<B>().cast<B>().toList();
+  b2 = a.whereType<B>().cast<B>().toList();
 }
 class A {}
 class B {}
@@ -752,14 +752,14 @@ class B {}
   test_addExplicitCast_declaration_list() async {
     await resolveTestUnit('''
 f(List<A> a) {
-  List<B> b = a.where((e) => e is B).toList();
+  List<B> b = a.whereType<B>().toList();
 }
 class A {}
 class B {}
 ''');
     await assertHasFix(DartFixKind.ADD_EXPLICIT_CAST, '''
 f(List<A> a) {
-  List<B> b = a.where((e) => e is B).cast<B>().toList();
+  List<B> b = a.whereType<B>().cast<B>().toList();
 }
 class A {}
 class B {}
@@ -769,8 +769,8 @@ class B {}
   test_addExplicitCast_declaration_list_all() async {
     await resolveTestUnit('''
 f(List<A> a) {
-  List<B> b = a.where((e) => e is B).toList();
-  List<B> b2 = a.where((e) => e is B).toList();
+  List<B> b = a.whereType<B>().toList();
+  List<B> b2 = a.whereType<B>().toList();
 }
 class A {}
 class B {}
@@ -778,8 +778,8 @@ class B {}
     await assertHasFixAllFix(StaticTypeWarningCode.INVALID_ASSIGNMENT,
         DartFixKind.ADD_EXPLICIT_CAST, '''
 f(List<A> a) {
-  List<B> b = a.where((e) => e is B).cast<B>().toList();
-  List<B> b2 = a.where((e) => e is B).cast<B>().toList();
+  List<B> b = a.whereType<B>().cast<B>().toList();
+  List<B> b2 = a.whereType<B>().cast<B>().toList();
 }
 class A {}
 class B {}

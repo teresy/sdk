@@ -31,7 +31,7 @@ class ByteStreamClientChannel implements ClientCommunicationChannel {
         .transform(const Utf8Decoder())
         .transform(new LineSplitter())
         .transform(new JsonStreamDecoder())
-        .where((json) => json is Map)
+        .whereType<Map>()
         .asBroadcastStream();
     responseStream = jsonStream
         .where((json) => json[Notification.EVENT] == null)

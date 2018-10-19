@@ -352,7 +352,7 @@ class TestFileLister {
       // Cannot test for _test.dart because co19 tests don't have that ending.
       var dartFiles = dir
           .listSync(recursive: true)
-          .where((fe) => fe is File)
+          .whereType<File>()
           .where((file) =>
               file.path.endsWith(".dart") || file.path.endsWith("_test.html"))
           .map((file) => file.path)

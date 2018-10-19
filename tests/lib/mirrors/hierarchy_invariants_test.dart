@@ -34,7 +34,7 @@ checkClass(classMirror) {
 
 checkLibrary(libraryMirror) {
   libraryMirror.declarations.values
-      .where((d) => d is ClassMirror)
+      .whereType<ClassMirror>()
       .forEach(checkClass);
 }
 

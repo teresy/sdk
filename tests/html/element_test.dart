@@ -447,7 +447,7 @@ main() {
 
     test('where', () {
       var filtered =
-          makeElementWithChildren().children.where((n) => n is ImageElement);
+          makeElementWithChildren().children.whereType<ImageElement>();
       expect(1, filtered.length);
       expect(filtered.first, isImageElement);
       expect(filtered, isElementIterable);
@@ -677,7 +677,7 @@ main() {
 
     test('where', () {
       var filtered =
-          getquerySelectorAll().where((n) => n is SpanElement).toList();
+          getquerySelectorAll().whereType<SpanElement>().toList();
       expect(filtered.length, 1);
       expect(filtered[0], isSpanElement);
       expect(filtered, isElementList);
@@ -776,7 +776,7 @@ main() {
     List<Element> makeElList() => makeElementWithChildren().children;
 
     test('where', () {
-      var filtered = makeElList().where((n) => n is ImageElement);
+      var filtered = makeElList().whereType<ImageElement>();
       expect(filtered.length, 1);
       expect(filtered.first, isImageElement);
       expect(filtered, isElementIterable);
@@ -990,7 +990,7 @@ main() {
     });
 
     test('where', () {
-      var filtered = makeElementList().where((n) => n is BRElement).toList();
+      var filtered = makeElementList().whereType<BRElement>().toList();
       expect(filtered.length, 3);
       expect(filtered[0], isBRElement);
     });

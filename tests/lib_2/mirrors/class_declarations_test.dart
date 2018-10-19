@@ -27,7 +27,7 @@ main() {
     'Variable(s(_staticVariable) in s(Class), private, static)',
     'Variable(s(instanceVariable) in s(Class))',
     'Variable(s(staticVariable) in s(Class), static)'
-  ], cm.declarations.values.where((dm) => dm is VariableMirror).map(stringify),
+  ], cm.declarations.values.whereType<VariableMirror>().map(stringify),
       'variables');
 
   Expect.setEquals(

@@ -56,7 +56,7 @@ class AbstractSingleUnitTest extends AbstractContextTest {
     var finder = new _ElementsByNameFinder(name);
     testUnit.accept(finder);
     List<Element> localVariables =
-        finder.elements.where((e) => e is LocalVariableElement).toList();
+        finder.elements.whereType<LocalVariableElement>().toList();
     expect(localVariables, hasLength(1));
     return localVariables[0];
   }

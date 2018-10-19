@@ -12083,7 +12083,7 @@ class Element extends Node
     var fragment = document.body.createFragment(html,
         validator: validator, treeSanitizer: treeSanitizer);
 
-    return fragment.nodes.where((e) => e is Element).single;
+    return fragment.nodes.whereType<Element>().single;
   }
 
   /**

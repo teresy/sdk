@@ -92,7 +92,7 @@ void testSetFrom() {
   }
 
   set1 = new SplayTreeSet<num>()..addAll([0, 1, 2.4, 3.14, 5]);
-  set2 = new SplayTreeSet<int>.from(set1.where((x) => x is int));
+  set2 = new SplayTreeSet<int>.from(set1.whereType<int>());
   Expect.equals(3, set2.length);
 }
 

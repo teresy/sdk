@@ -437,7 +437,7 @@ class SsaInstructionMerger extends HBaseVisitor {
     // entry.
     int initializingAssignmentCount = (local is HParameterValue) ? 0 : 1;
     return local.usedBy
-        .where((user) => user is HLocalSet)
+        .whereType<HLocalSet>()
         .skip(initializingAssignmentCount)
         .isNotEmpty;
   }

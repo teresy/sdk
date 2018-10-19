@@ -699,7 +699,7 @@ class StandardTestSuite extends TestSuite {
   void enqueueDirectory(Directory dir, FutureGroup group) {
     var lister = dir
         .list(recursive: listRecursively)
-        .where((fse) => fse is File)
+        .whereType<File>()
         .forEach((FileSystemEntity entity) {
       enqueueFile((entity as File).path, group);
     });

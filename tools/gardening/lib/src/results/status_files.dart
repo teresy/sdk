@@ -24,7 +24,7 @@ class StatusFiles {
       for (var section in file.sections) {
         _sections.add(new StatusSectionWithFile(file, section));
         for (StatusEntry entry
-            in section.entries.where((entry) => entry is StatusEntry)) {
+            in section.entries.whereType<StatusEntry>()) {
           var sectionEntry = new StatusSectionEntry(file, section, entry);
           if (entry.path.contains("*")) {
             _wildcardEntries[sectionEntry] = _processForMatching(entry.path);

@@ -19,7 +19,7 @@ main() {
         ' in s(test.declarations_model), private, top-level, static)',
     'Variable(s(libraryVariable)'
         ' in s(test.declarations_model), top-level, static)'
-  ], lm.declarations.values.where((dm) => dm is VariableMirror).map(stringify),
+  ], lm.declarations.values.whereType<VariableMirror>().map(stringify),
       'variables');
 
   // dart2js stops testing here.
@@ -69,7 +69,7 @@ main() {
     'Class(s(Superclass) in s(test.declarations_model), top-level)',
     'Class(s(_PrivateClass)'
         ' in s(test.declarations_model), private, top-level)'
-  ], lm.declarations.values.where((dm) => dm is ClassMirror).map(stringify),
+  ], lm.declarations.values.whereType<ClassMirror>().map(stringify),
       'classes');
 
   Expect.setEquals([
@@ -81,7 +81,7 @@ main() {
     'Class(s(Superclass) in s(test.declarations_model), top-level)',
     'Class(s(_PrivateClass)'
         ' in s(test.declarations_model), private, top-level)'
-  ], lm.declarations.values.where((dm) => dm is TypeMirror).map(stringify),
+  ], lm.declarations.values.whereType<TypeMirror>().map(stringify),
       'types');
 
   Expect.setEquals([

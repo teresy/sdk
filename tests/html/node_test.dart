@@ -148,7 +148,7 @@ main() {
 
     test('where', () {
       var filtered =
-          makeNodeWithChildren().nodes.where((n) => n is BRElement).toList();
+          makeNodeWithChildren().nodes.whereType<BRElement>().toList();
       expect(filtered.length, 1);
       expect(filtered[0], isBRElement);
       expect(filtered, isNodeList);

@@ -128,11 +128,11 @@ checkLibrary(libraryMirror) {
   if (isBlacklisted(libraryMirror.qualifiedName)) return;
 
   libraryMirror.declarations.values
-      .where((d) => d is ClassMirror)
+      .whereType<ClassMirror>()
       .forEach(checkClass);
 
   libraryMirror.declarations.values
-      .where((d) => d is MethodMirror)
+      .whereType<MethodMirror>()
       .forEach((m) => checkMethod(m, libraryMirror));
 }
 

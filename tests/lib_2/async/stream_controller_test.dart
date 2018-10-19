@@ -76,7 +76,7 @@ void testMultiController() {
       ..add("another string")
       ..close();
     var actualEvents = new Events.capture(
-        c.stream.asBroadcastStream().where((v) => v is String));
+        c.stream.asBroadcastStream().whereType<String>());
     sentEvents.replay(c);
     Expect.listEquals(expectedEvents.events, actualEvents.events);
   }
@@ -196,7 +196,7 @@ void testMultiController() {
     var actualEvents = new Events.capture(
         c.stream
             .asBroadcastStream()
-            .where((v) => v is String)
+            .whereType<String>()
             .map((v) => int.parse(v))
             .handleError((error) {
           if (error is! FormatException) throw error;
@@ -290,7 +290,7 @@ testSingleController() {
       ..add(42)
       ..add("another string")
       ..close();
-    var actualEvents = new Events.capture(c.stream.where((v) => v is String));
+    var actualEvents = new Events.capture(c.stream.whereType<String>());
     sentEvents.replay(c);
     Expect.listEquals(expectedEvents.events, actualEvents.events);
   }
@@ -452,7 +452,7 @@ testSingleController() {
       ..error("not FormatException");
     var actualEvents = new Events.capture(
         c.stream
-            .where((v) => v is String)
+            .whereType<String>()
             .map((v) => int.parse(v))
             .handleError((error) {
           if (error is! FormatException) throw error;

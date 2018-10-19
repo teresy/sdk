@@ -112,7 +112,7 @@ checkInstance(instanceMirror, origin) {
         .where((d) => d is MethodMirror && !d.isStatic)
         .forEach((m) => checkMethod(m, instanceMirror, origin));
     instanceMirror.type.declarations.values
-        .where((d) => d is VariableMirror)
+        .whereType<VariableMirror>()
         .forEach((v) => checkField(v, instanceMirror, origin));
     klass = klass.superclass;
   }
@@ -144,11 +144,11 @@ checkLibrary(libraryMirror) {
   if (isBlacklisted(libraryMirror.qualifiedName)) return;
 
   libraryMirror.declarations.values
-      .where((d) => d is ClassMirror)
+      .whereType<ClassMirror>()
       .forEach(checkClass);
 
   libraryMirror.declarations.values
-      .where((d) => d is MethodMirror)
+      .whereType<MethodMirror>()
       .forEach((m) => checkMethod(m, libraryMirror));
 }
 

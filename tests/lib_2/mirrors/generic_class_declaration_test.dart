@@ -36,7 +36,7 @@ main() {
     'Variable(s(_staticVariable) in s(A), private, static)',
     'Variable(s(instanceVariable) in s(A))',
     'Variable(s(staticVariable) in s(A), static)'
-  ], cm.declarations.values.where((dm) => dm is VariableMirror).map(stringify),
+  ], cm.declarations.values.whereType<VariableMirror>().map(stringify),
       'variables');
 
   Expect.setEquals(
@@ -88,7 +88,7 @@ main() {
             's(dart.core), top-level))'
       ],
       cm.declarations.values
-          .where((dm) => dm is TypeVariableMirror)
+          .whereType<TypeVariableMirror>()
           .map(stringify),
       'type variables');
 }
